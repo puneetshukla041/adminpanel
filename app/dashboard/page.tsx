@@ -1,12 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import Image from 'next/image';
 
 // Type definition for a single registration entry.
 type Registration = {
-  ticketNo: string;
+  _id: string; // Changed from ticketNo to _id for MongoDB
   fullName: string;
   email: string;
   phoneNumber: string;
@@ -21,7 +22,7 @@ type Registration = {
   trainingPrograms: string;
   additionalPrograms: string;
   uploadId: string;
-  status: "upcoming" | "pending" | "completed";
+  status: 'upcoming' | 'pending' | 'completed';
   isExpired: boolean;
 };
 
@@ -139,41 +140,43 @@ const ViewModal = ({ isOpen, onClose, registration }: ViewModalProps) => {
   if (!isOpen || !registration) return null;
 
   const labelMap: Record<keyof Registration, string> = {
-    ticketNo: "Ticket No.",
-    fullName: "Full Name",
-    email: "Email Address",
-    phoneNumber: "Phone Number",
-    dob: "Date of Birth",
-    experience: "Professional Experience",
-    institution: "Institution",
-    callDateTime: "Call Scheduled",
-    hearAboutUs: "Heard About Us",
-    currentProfession: "Current Profession",
-    specialization: "Area of Specialization",
-    learningGoals: "Learning Goals",
-    trainingPrograms: "Training Programs",
-    additionalPrograms: "Additional Programs",
-    uploadId: "ID Card Upload",
-    status: "Application Status",
-    isExpired: "Is Expired"
+    _id: 'Ticket No.',
+    fullName: 'Full Name',
+    email: 'Email Address',
+    phoneNumber: 'Phone Number',
+    dob: 'Date of Birth',
+    experience: 'Professional Experience',
+    institution: 'Institution',
+    callDateTime: 'Call Scheduled',
+    hearAboutUs: 'Heard About Us',
+    currentProfession: 'Current Profession',
+    specialization: 'Area of Specialization',
+    learningGoals: 'Learning Goals',
+    trainingPrograms: 'Training Programs',
+    additionalPrograms: 'Additional Programs',
+    uploadId: 'ID Card Upload',
+    status: 'Application Status',
+    isExpired: 'Is Expired',
   };
 
   const formatValue = (key: keyof Registration, value: any) => {
-    if (key === "callDateTime" && value) {
+    if (key === 'callDateTime' && value) {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
       }
     }
-    if (key === "uploadId" && value) {
-      const fileUrl = `http://localhost/backend-php/${value}`;
+    if (key === 'uploadId' && value) {
+      // Note: This URL might need to be adjusted based on where your files are stored.
+      // Assuming a public folder or a new API route for file serving.
+      const fileUrl = `/api/files?id=${value}`;
       return (
         <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
           View File
         </a>
       );
     }
-    return value !== null && value !== undefined ? String(value) : "N/A";
+    return value !== null && value !== undefined ? String(value) : 'N/A';
   };
 
   return (
@@ -206,7 +209,7 @@ const ViewModal = ({ isOpen, onClose, registration }: ViewModalProps) => {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(registration)
-            .filter(([key]) => key !== "ticketNo")
+            .filter(([key]) => key !== "_id")
             .map(([key, value]) => (
               <motion.div
                 key={key}
@@ -229,46 +232,30 @@ const ViewModal = ({ isOpen, onClose, registration }: ViewModalProps) => {
   );
 };
 
-// New Modal for Exporting Data
+// Reusable Modal for Exporting Data
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: (format: "pdf" | "excel", registrationId: string | string[] | "all") => void;
-  exportingId: string | string[] | "all" | undefined;
+  onExport: (format: 'pdf' | 'excel', registrationId: string | string[] | 'all') => void;
+  exportingId: string | string[] | 'all' | undefined;
 }
 
 
 const ExportModal = ({ isOpen, onClose, onExport, exportingId }: ExportModalProps) => {
   if (!isOpen) return null;
 
-  const handleExport = async (format: "pdf" | "excel") => {
-    try {
-      const ids = Array.isArray(exportingId) ? exportingId.join(",") : exportingId;
-      const response = await fetch(`/api/export?format=${format}&id=${ids}`);
-      if (!response.ok) throw new Error("Export failed");
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `registration_export.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      onClose();
-    } catch (err) {
-      console.error("Export error:", err);
-    }
+  const handleExport = (format: 'pdf' | 'excel') => {
+    onExport(format, exportingId!);
+    onClose();
   };
 
   const isBulkExport = Array.isArray(exportingId) && exportingId.length > 1;
-  const title = isBulkExport ? `Export ${exportingId.length} Registrations` : (exportingId === "all" ? "Export All Data" : "Export Selected Registration");
+  const title = isBulkExport ? `Export ${exportingId.length} Registrations` : (exportingId === 'all' ? 'Export All Data' : 'Export Selected Registration');
   const description = isBulkExport
     ? `Select a file format to download the details for ${exportingId.length} selected registrations.`
-    : (exportingId === "all"
-      ? "Select a file format to download all registration records."
-      : "Select a file format to download the details of this registration.");
+    : (exportingId === 'all'
+      ? 'Select a file format to download all registration records.'
+      : 'Select a file format to download the details of this registration.');
 
   return (
     <motion.div
@@ -296,13 +283,13 @@ const ExportModal = ({ isOpen, onClose, onExport, exportingId }: ExportModalProp
         <p className="text-sm text-gray-600 mb-5">{description}</p>
         <div className="flex flex-col gap-4">
           <button
-            onClick={() => handleExport("pdf")}
+            onClick={() => handleExport('pdf')}
             className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center transition-all duration-300 hover:bg-red-700 active:scale-95 cursor-pointer"
           >
             <IconFilePdf className="mr-2 h-5 w-5 fill-white stroke-red-600" /> Export as PDF
           </button>
           <button
-            onClick={() => handleExport("excel")}
+            onClick={() => handleExport('excel')}
             className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center transition-all duration-300 hover:bg-green-700 active:scale-95 cursor-pointer"
           >
             <IconFileExcel className="mr-2 h-5 w-5 fill-white stroke-green-600" /> Export as Excel
@@ -349,7 +336,6 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
   return (
     <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
       <h2 className="text-2xl font-bold text-gray-900 mb-4">Registration Analytics</h2>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Bar Chart */}
         <div className="p-4 bg-gray-50 rounded-2xl">
@@ -366,7 +352,6 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
         {/* Pie Chart */}
         <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Registration Status Distribution</h3>
@@ -388,9 +373,9 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "none",
-                  borderRadius: "12px",
+                  backgroundColor: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
                 }}
               />
               <Legend verticalAlign="bottom" height={36} />
@@ -406,28 +391,28 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
 export default function DashboardPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<keyof Registration>("ticketNo");
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<keyof Omit<Registration, '_id'>>('fullName');
   const [sortAsc, setSortAsc] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [viewing, setViewing] = useState<Registration | null>(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportingId, setExportingId] = useState<string | string[] | "all" | undefined>(undefined);
-  const [filterStatus, setFilterStatus] = useState<"all" | "upcoming" | "pending" | "completed">("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [exportingId, setExportingId] = useState<string | string[] | 'all' | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [dateRangePreset, setDateRangePreset] = useState<string>("all");
+  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
 
   const fetchRegistrations = async () => {
     try {
-      const res = await fetch("/api/registrations");
-      if (!res.ok) throw new Error("Failed to fetch registrations data.");
-      const data = await res.json();
+      const res = await fetch('/backend/api/registrations');
+      if (!res.ok) throw new Error('Failed to fetch registrations data.');
+      const { data } = await res.json();
       setRegistrations(data);
     } catch (err) {
-      console.error("Error fetching registrations:", err);
+      console.error('Error fetching registrations:', err);
     } finally {
       setLoading(false);
     }
@@ -437,21 +422,21 @@ export default function DashboardPage() {
     fetchRegistrations();
   }, []);
 
-  const updateStatus = async (ticketNo: string, newStatus: Registration['status']) => {
+  const updateStatus = async (_id: string, newStatus: Registration['status']) => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost/backend-php/update-status.php", {
-        method: "POST",
+      const res = await fetch(`/backend/api/registrations/${_id}`, {
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticketNo, status: newStatus.toLowerCase() }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
       if (data.success) {
         setRegistrations(prev =>
           prev.map(reg => {
-            if (reg.ticketNo === ticketNo) {
+            if (reg._id === _id) {
               const newIsExpired = newStatus === 'completed';
               return { ...reg, status: newStatus.toLowerCase() as Registration['status'], isExpired: newIsExpired };
             }
@@ -459,12 +444,12 @@ export default function DashboardPage() {
           })
         );
       } else {
-        console.error("Failed to update status:", data.error);
-        console.log("Failed to update status. Please try again.");
+        console.error('Failed to update status:', data.error);
+        alert('Failed to update status. Please try again.');
       }
     } catch (error) {
-      console.error("Error updating status:", error);
-      console.log("An error occurred while updating the status.");
+      console.error('Error updating status:', error);
+      alert('An error occurred while updating the status.');
     } finally {
       setLoading(false);
     }
@@ -474,12 +459,37 @@ export default function DashboardPage() {
     if (selectedRows.size === 0) return;
     setLoading(true);
     try {
-      for (const ticketNo of selectedRows) {
-        await updateStatus(ticketNo, newStatus);
+      for (const _id of selectedRows) {
+        await updateStatus(_id, newStatus);
       }
       setSelectedRows(new Set());
     } catch (error) {
-      console.error("Error with bulk update:", error);
+      console.error('Error with bulk update:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'pdf' | 'excel', id: string | string[] | 'all') => {
+    setLoading(true);
+    try {
+      const idsParam = Array.isArray(id) ? id.join(',') : id;
+      const res = await fetch(`/api/export?format=${format}&ids=${idsParam}`);
+      if (!res.ok) {
+        throw new Error('Export failed');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `registrations_export.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('An error occurred while exporting the data.');
     } finally {
       setLoading(false);
     }
@@ -487,26 +497,26 @@ export default function DashboardPage() {
 
   const handleDatePreset = (preset: string) => {
     const today = new Date();
-    let start = "";
+    let start = '';
     let end = today.toISOString().split('T')[0];
 
-    switch(preset) {
-        case "today":
-            start = end;
-            break;
-        case "last7days":
-            const sevenDaysAgo = new Date(today);
-            sevenDaysAgo.setDate(today.getDate() - 7);
-            start = sevenDaysAgo.toISOString().split('T')[0];
-            break;
-        case "last30days":
-            const thirtyDaysAgo = new Date(today);
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            start = thirtyDaysAgo.toISOString().split('T')[0];
-            break;
-        default:
-            start = "";
-            end = "";
+    switch (preset) {
+      case 'today':
+        start = end;
+        break;
+      case 'last7days':
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        start = sevenDaysAgo.toISOString().split('T')[0];
+        break;
+      case 'last30days':
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        start = thirtyDaysAgo.toISOString().split('T')[0];
+        break;
+      default:
+        start = '';
+        end = '';
     }
     setStartDate(start);
     setEndDate(end);
@@ -516,23 +526,20 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     let result = registrations;
 
-    // Filter by search term
     if (search) {
       result = result.filter(
         (r) =>
           r.fullName.toLowerCase().includes(search.toLowerCase()) ||
           r.email.toLowerCase().includes(search.toLowerCase()) ||
           r.currentProfession.toLowerCase().includes(search.toLowerCase()) ||
-          String(r.ticketNo).includes(search)
+          String(r._id).includes(search)
       );
     }
 
-    // Filter by status
-    if (filterStatus !== "all") {
+    if (filterStatus !== 'all') {
       result = result.filter(r => r.status === filterStatus);
     }
 
-    // Filter by date range
     if (startDate && endDate) {
       const start = new Date(startDate).setHours(0, 0, 0, 0);
       const end = new Date(endDate).setHours(23, 59, 59, 999);
@@ -547,10 +554,10 @@ export default function DashboardPage() {
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      const aValue = a[sortKey];
-      const bValue = b[sortKey];
+      const aValue = a[sortKey as keyof Registration];
+      const bValue = b[sortKey as keyof Registration];
 
-      if (typeof aValue === "string" && typeof bValue === "string") {
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
         return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
       return sortAsc ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
@@ -567,18 +574,18 @@ export default function DashboardPage() {
   const toggleSort = (key: keyof Registration) => {
     if (sortKey === key) setSortAsc(!sortAsc);
     else {
-      setSortKey(key);
+      setSortKey(key as keyof Omit<Registration, '_id'>);
       setSortAsc(true);
     }
   };
 
-  const handleCheckboxChange = (ticketNo: string) => {
+  const handleCheckboxChange = (_id: string) => {
     setSelectedRows(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(ticketNo)) {
-        newSet.delete(ticketNo);
+      if (newSet.has(_id)) {
+        newSet.delete(_id);
       } else {
-        newSet.add(ticketNo);
+        newSet.add(_id);
       }
       return newSet;
     });
@@ -586,8 +593,8 @@ export default function DashboardPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allTicketNos = new Set(paginated.map(r => r.ticketNo));
-      setSelectedRows(allTicketNos);
+      const allIds = new Set(paginated.map(r => r._id));
+      setSelectedRows(allIds);
     } else {
       setSelectedRows(new Set());
     }
@@ -599,35 +606,17 @@ export default function DashboardPage() {
   const completedRegistrationsCount = useMemo(() => registrations.filter(r => r.status === 'completed').length, [registrations]);
 
   const columns: { label: string; key: keyof Registration | 'actions' | 'selection' }[] = [
-    { label: "Select", key: "selection" },
-    { label: "Ticket No.", key: "ticketNo" },
-    { label: "Full Name", key: "fullName" },
-    { label: "Email", key: "email" },
-    { label: "Profession", key: "currentProfession" },
-    { label: "Institution", key: "institution" },
-    { label: "Status", key: "status" },
-    { label: "Ticket State", key: "isExpired" },
-    { label: "Actions", key: "actions" },
+    { label: 'Select', key: 'selection' },
+    { label: 'Ticket No.', key: '_id' },
+    { label: 'Full Name', key: 'fullName' },
+    { label: 'Email', key: 'email' },
+    { label: 'Profession', key: 'currentProfession' },
+    { label: 'Institution', key: 'institution' },
+    { label: 'Status', key: 'status' },
+    { label: 'Ticket State', key: 'isExpired' },
+    { label: 'Actions', key: 'actions' },
   ];
 
-
-  const formatDisplayValue = (key: keyof Registration, value: string) => {
-    if (key === 'callDateTime' && value) {
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-      }
-    }
-    if (key === 'uploadId' && value) {
-      const fileUrl = `http://localhost/backend-php/${value}`;
-      return (
-        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-          View File
-        </a>
-      );
-    }
-    return value;
-  };
 
   const getStatusColor = (status: Registration['status']) => {
     switch (status.toLowerCase()) {
@@ -651,7 +640,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans" style={{ backgroundColor: '#f3f4f6' }}>
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
           className="text-gray-600"
         >
           <IconSpinner className="h-12 w-12" />
@@ -675,7 +664,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => {
-                setExportingId("all");
+                setExportingId('all');
                 setExportModalOpen(true);
               }}
               className="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-3 rounded-xl flex items-center hover:bg-blue-700 transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
@@ -801,37 +790,37 @@ export default function DashboardPage() {
                     <span className="text-sm font-medium text-gray-700">Status:</span>
                     <button
                         onClick={() => {
-                            setFilterStatus("all");
+                            setFilterStatus('all');
                             setCurrentPage(1);
                         }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === "all" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         All
                     </button>
                     <button
                         onClick={() => {
-                            setFilterStatus("upcoming");
+                            setFilterStatus('upcoming');
                             setCurrentPage(1);
                         }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === "upcoming" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Upcoming
                     </button>
                     <button
                         onClick={() => {
-                            setFilterStatus("pending");
+                            setFilterStatus('pending');
                             setCurrentPage(1);
                         }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === "pending" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Pending
                     </button>
                     <button
                         onClick={() => {
-                            setFilterStatus("completed");
+                            setFilterStatus('completed');
                             setCurrentPage(1);
                         }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === "completed" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterStatus === 'completed' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Completed
                     </button>
@@ -842,20 +831,20 @@ export default function DashboardPage() {
                     <span className="text-sm font-medium text-gray-700">Date Range:</span>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
-                            onClick={() => handleDatePreset("today")}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === "today" ? "bg-gray-700 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                            onClick={() => handleDatePreset('today')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === 'today' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >
                             Today
                         </button>
                         <button
-                            onClick={() => handleDatePreset("last7days")}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === "last7days" ? "bg-gray-700 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                            onClick={() => handleDatePreset('last7days')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === 'last7days' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >
                             Last 7 Days
                         </button>
                         <button
-                            onClick={() => handleDatePreset("last30days")}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === "last30days" ? "bg-gray-700 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                            onClick={() => handleDatePreset('last30days')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${dateRangePreset === 'last30days' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >
                             Last 30 Days
                         </button>
@@ -864,14 +853,14 @@ export default function DashboardPage() {
                         <input
                             type="date"
                             value={startDate}
-                            onChange={(e) => { setStartDate(e.target.value); setDateRangePreset("custom"); }}
+                            onChange={(e) => { setStartDate(e.target.value); setDateRangePreset('custom'); }}
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         />
                         <span className="text-gray-500">-</span>
                         <input
                             type="date"
                             value={endDate}
-                            onChange={(e) => { setEndDate(e.target.value); setDateRangePreset("custom"); }}
+                            onChange={(e) => { setEndDate(e.target.value); setDateRangePreset('custom'); }}
                             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         />
                     </div>
@@ -892,7 +881,7 @@ export default function DashboardPage() {
                         </span>
                         <div className="flex flex-wrap items-center gap-2">
                             <button
-                                onClick={() => handleBulkUpdate("completed")}
+                                onClick={() => handleBulkUpdate('completed')}
                                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all duration-200 shadow-sm"
                             >
                                 Mark as Completed
@@ -917,7 +906,6 @@ export default function DashboardPage() {
                 )}
             </AnimatePresence>
 
-
             <div className="overflow-x-auto -mx-6 md:mx-0">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -928,7 +916,6 @@ export default function DashboardPage() {
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none min-w-[100px]"
                         onClick={() => {
-                            // Only allow sorting on columns that are not 'actions' or 'selection'
                             if (col.key !== 'actions' && col.key !== 'selection') {
                                 toggleSort(col.key as keyof Registration);
                             }
@@ -940,10 +927,9 @@ export default function DashboardPage() {
                                   type="checkbox"
                                   className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
                                   onChange={(e) => handleSelectAll(e.target.checked)}
-                                  checked={selectedRows.size > 0 && paginated.every(r => selectedRows.has(r.ticketNo))}
+                                  checked={selectedRows.size > 0 && paginated.every(r => selectedRows.has(r._id))}
                               />
                           ) : col.label}
-                          {/* Only display sort icons for sortable columns */}
                           {col.key !== 'actions' && col.key !== 'selection' && (
                             <span className="ml-2">
                               {sortKey === col.key ? (
@@ -967,7 +953,7 @@ export default function DashboardPage() {
                     {paginated.length > 0 ? (
                       paginated.map((r, index) => (
                         <motion.tr
-                          key={r.ticketNo}
+                          key={r._id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -983,8 +969,8 @@ export default function DashboardPage() {
                                   <input
                                       type="checkbox"
                                       className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
-                                      checked={selectedRows.has(r.ticketNo)}
-                                      onChange={() => handleCheckboxChange(r.ticketNo)}
+                                      checked={selectedRows.has(r._id)}
+                                      onChange={() => handleCheckboxChange(r._id)}
                                   />
                               ) : col.key === 'actions' ? (
                                 <div className="flex space-x-2">
@@ -996,7 +982,7 @@ export default function DashboardPage() {
                                   </button>
                                   <button
                                     onClick={() => {
-                                      setExportingId(r.ticketNo);
+                                      setExportingId(r._id);
                                       setExportModalOpen(true);
                                     }}
                                     className="text-gray-600 hover:text-gray-800 transition-all duration-200 text-sm font-medium flex items-center hover:scale-110 active:scale-95 cursor-pointer"
@@ -1007,7 +993,7 @@ export default function DashboardPage() {
                               ) : col.key === 'status' ? (
                                 <select
                                   value={r.status}
-                                  onChange={(e) => updateStatus(r.ticketNo, e.target.value as Registration['status'])}
+                                  onChange={(e) => updateStatus(r._id, e.target.value as Registration['status'])}
                                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2`}
                                 >
                                   <option value="upcoming" className="bg-white text-gray-900">Upcoming</option>
@@ -1019,7 +1005,7 @@ export default function DashboardPage() {
                                   {r.isExpired ? 'Expired' : 'Active'}
                                 </span>
                               ) : (
-                                formatDisplayValue(col.key as keyof Registration, r[col.key as keyof Registration] as string)
+                                r[col.key as keyof Registration] as string
                               )}
                             </td>
                           ))}
@@ -1056,7 +1042,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-between">
                 <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, sorted.length)} to{" "}
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, sorted.length)} to{' '}
                   {Math.min(currentPage * itemsPerPage, sorted.length)} of {sorted.length} entries
                 </div>
                 <div className="flex items-center space-x-2">
@@ -1087,7 +1073,7 @@ export default function DashboardPage() {
       <ExportModal
         isOpen={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
-        onExport={() => {}}
+        onExport={handleExport}
         exportingId={exportingId}
       />
     </div>
