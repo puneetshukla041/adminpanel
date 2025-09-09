@@ -82,16 +82,16 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         <div className="p-5 h-[72px] border-b border-gray-800/50 flex items-center justify-center overflow-hidden">
           {isMobile || isDesktopHovered ? (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 100, scale: 0.95 }}
+              animate={{ opacity: 100, scale: 1 }}
               transition={{ duration: 0.2 }}
               className="flex items-center gap-3"
             >
               <Image
                 src="/images/ssilogo.png"
                 alt="SSI Logo"
-                width={32}
-                height={32}
+                width={37}
+                height={37}
                 className="object-contain"
               />
               <Logo />
@@ -100,8 +100,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
             <Image
               src="/images/ssilogo.png"
               alt="SSI Logo"
-              width={32}
-              height={32}
+              width={37}
+              height={37}
               className="object-contain"
             />
           )}
@@ -129,6 +129,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                       ${active ? 'text-white font-medium bg-white/10' : 'text-gray-400 hover:text-white'}
                       hover:bg-white/10 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/20
                       ${!isMobile && !isDesktopHovered && 'justify-center'}
+                      cursor-pointer
                     `}
                     type="button"
                     aria-expanded={item.children ? isOpenMenuItem : undefined}
@@ -204,6 +205,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                                 className={`block w-full text-left px-3 py-2 text-sm rounded-md transition-colors duration-200 mt-1
                                   ${childIsActive ? 'text-white font-medium bg-white/10' : 'text-gray-400 hover:text-white'}
                                   hover:bg-white/10 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/20
+                                  cursor-pointer
                                 `}
                                 type="button"
                               >
