@@ -34,7 +34,7 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const res = await fetch("/backend/api/auth/admin-login", {
+    const res = await fetch("/api/admin-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),

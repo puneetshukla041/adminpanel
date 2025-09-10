@@ -1,27 +1,29 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import Image from 'next/image';
+import * as XLSX from 'xlsx';
+
 
 // Type definition for a single registration entry.
 type Registration = {
-  _id: string; // Changed from ticketNo to _id for MongoDB
+  _id: string;
   fullName: string;
   email: string;
-  phoneNumber: string;
-  dob: string;
-  experience: string;
-  institution: string;
-  callDateTime: string;
-  hearAboutUs: string;
-  currentProfession: string;
-  specialization: string;
-  learningGoals: string;
-  trainingPrograms: string;
-  additionalPrograms: string;
-  uploadId: string;
+  phoneNumber?: string;
+  dob?: string;
+  experience?: number;
+  institution?: string;
+  callDateTime?: string;
+  hearAboutUs?: string;
+  currentProfession?: string;
+  specialization?: string;
+  learningGoals?: string;
+  trainingPrograms: string[];
+  additionalPrograms: string[];
+  uploadId?: string;
   status: 'upcoming' | 'pending' | 'completed';
   isExpired: boolean;
 };
@@ -74,12 +76,16 @@ const IconChartLine = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const IconGraduationCap = (props: React.SVGProps<SVGSVGElement>) => (
+const IconSpinner = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M21.42 10.97a2.53 2.53 0 0 0-1.89-1.28L12 8l-7.53 1.69a2.53 2.53 0 0 0-1.89 1.28L.7 18.23a2 2 0 0 0 .7 2.12a2 2 0 0 0 2.12.7L20.2 21.05a2 2 0 0 0 2.12-.7a2 2 0 0 0 .7-2.12z" />
-    <path d="M12 8v12" />
-    <path d="M18 10v10" />
-    <path d="M6 10v10" />
+    <path d="M12 2v4" />
+    <path d="M12 18v4" />
+    <path d="M4.93 4.93l2.83 2.83" />
+    <path d="M16.24 16.24l2.83 2.83" />
+    <path d="M2 12h4" />
+    <path d="M18 12h4" />
+    <path d="M4.93 19.07l2.83-2.83" />
+    <path d="M16.24 7.76l2.83-2.83" />
   </svg>
 );
 
@@ -112,19 +118,6 @@ const IconEye = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M2 12s3-7 10-7s10 7 10 7s-3 7-10 7s-10-7-10-7z" />
     <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const IconSpinner = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M12 2v4" />
-    <path d="M12 18v4" />
-    <path d="M4.93 4.93l2.83 2.83" />
-    <path d="M16.24 16.24l2.83 2.83" />
-    <path d="M2 12h4" />
-    <path d="M18 12h4" />
-    <path d="M4.93 19.07l2.83-2.83" />
-    <path d="M16.24 7.76l2.83-2.83" />
   </svg>
 );
 
@@ -166,9 +159,10 @@ const ViewModal = ({ isOpen, onClose, registration }: ViewModalProps) => {
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
       }
     }
+    if ((key === 'trainingPrograms' || key === 'additionalPrograms') && Array.isArray(value)) {
+      return value.join(', ');
+    }
     if (key === 'uploadId' && value) {
-      // Note: This URL might need to be adjusted based on where your files are stored.
-      // Assuming a public folder or a new API route for file serving.
       const fileUrl = `/api/files?id=${value}`;
       return (
         <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
@@ -207,9 +201,9 @@ const ViewModal = ({ isOpen, onClose, registration }: ViewModalProps) => {
         <p className="text-sm text-gray-600 mb-6">
           Comprehensive profile for <span className="font-semibold text-blue-600">{registration.fullName}</span>.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70vh] pr-4">
           {Object.entries(registration)
-            .filter(([key]) => key !== "_id")
+            .filter(([key]) => key !== "__v" && key !== "uploadName")
             .map(([key, value]) => (
               <motion.div
                 key={key}
@@ -239,7 +233,6 @@ interface ExportModalProps {
   onExport: (format: 'pdf' | 'excel', registrationId: string | string[] | 'all') => void;
   exportingId: string | string[] | 'all' | undefined;
 }
-
 
 const ExportModal = ({ isOpen, onClose, onExport, exportingId }: ExportModalProps) => {
   if (!isOpen) return null;
@@ -306,20 +299,20 @@ interface DataVisualizationsProps {
 }
 
 const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
-  // Aggregate data for monthly registrations bar chart
   const monthlyData = useMemo(() => {
     const data: { [key: string]: number } = {};
     registrations.forEach(reg => {
-      const date = new Date(reg.callDateTime);
-      if (!isNaN(date.getTime())) {
-        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        data[monthYear] = (data[monthYear] || 0) + 1;
+      if (reg.callDateTime) {
+        const date = new Date(reg.callDateTime);
+        if (!isNaN(date.getTime())) {
+          const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          data[monthYear] = (data[monthYear] || 0) + 1;
+        }
       }
     });
     return Object.entries(data).map(([name, count]) => ({ name, registrations: count }));
   }, [registrations]);
 
-  // Aggregate data for status pie chart
   const statusData = useMemo(() => {
     const upcomingCount = registrations.filter(r => r.status === 'upcoming').length;
     const pendingCount = registrations.filter(r => r.status === 'pending').length;
@@ -337,7 +330,6 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
     <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
       <h2 className="text-2xl font-bold text-gray-900 mb-4">Registration Analytics</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Bar Chart */}
         <div className="p-4 bg-gray-50 rounded-2xl">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -352,7 +344,6 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {/* Pie Chart */}
         <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Registration Status Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -385,7 +376,6 @@ const DataVisualizations = ({ registrations }: DataVisualizationsProps) => {
       </div>
     </section>
   );
-
 };
 
 export default function DashboardPage() {
@@ -407,7 +397,7 @@ export default function DashboardPage() {
 
   const fetchRegistrations = async () => {
     try {
-      const res = await fetch('/backend/api/registrations');
+      const res = await fetch('/api/registrations');
       if (!res.ok) throw new Error('Failed to fetch registrations data.');
       const { data } = await res.json();
       setRegistrations(data);
@@ -425,20 +415,19 @@ export default function DashboardPage() {
   const updateStatus = async (_id: string, newStatus: Registration['status']) => {
     setLoading(true);
     try {
-      const res = await fetch(`/backend/api/registrations/${_id}`, {
+      const res = await fetch(`/api/registrations/${_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, isExpired: newStatus === 'completed' }),
       });
       const data = await res.json();
       if (data.success) {
         setRegistrations(prev =>
           prev.map(reg => {
             if (reg._id === _id) {
-              const newIsExpired = newStatus === 'completed';
-              return { ...reg, status: newStatus.toLowerCase() as Registration['status'], isExpired: newIsExpired };
+              return { ...reg, status: newStatus, isExpired: newStatus === 'completed' };
             }
             return reg;
           })
@@ -531,7 +520,7 @@ export default function DashboardPage() {
         (r) =>
           r.fullName.toLowerCase().includes(search.toLowerCase()) ||
           r.email.toLowerCase().includes(search.toLowerCase()) ||
-          r.currentProfession.toLowerCase().includes(search.toLowerCase()) ||
+          r.currentProfession?.toLowerCase().includes(search.toLowerCase()) ||
           String(r._id).includes(search)
       );
     }
@@ -544,6 +533,7 @@ export default function DashboardPage() {
       const start = new Date(startDate).setHours(0, 0, 0, 0);
       const end = new Date(endDate).setHours(23, 59, 59, 999);
       result = result.filter(r => {
+        if (!r.callDateTime) return false;
         const registrationDate = new Date(r.callDateTime).getTime();
         return registrationDate >= start && registrationDate <= end;
       });
@@ -617,20 +607,22 @@ export default function DashboardPage() {
     { label: 'Actions', key: 'actions' },
   ];
 
-
-  const getStatusColor = (status: Registration['status']) => {
-    switch (status.toLowerCase()) {
-      case 'upcoming':
-        return 'bg-blue-100 text-blue-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
+const getStatusColor = (status: Registration['status'] | undefined) => {
+  // Add a check to ensure status is a valid string before calling .toLowerCase()
+  if (typeof status !== 'string') {
+    return 'bg-gray-100 text-gray-800'; // Return a default color for undefined status
+  }
+  switch (status.toLowerCase()) {
+    case 'upcoming':
+      return 'bg-blue-100 text-blue-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'completed':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
   const getTicketStateColor = (isExpired: boolean) => {
     return isExpired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
   };
