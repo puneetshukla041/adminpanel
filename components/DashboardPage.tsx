@@ -300,12 +300,16 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
   cy="50%"
   outerRadius={80}
   fill="#8884d8"
-  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+  label={(props) => {
+    const { name, percent } = props as { name: string; percent?: number };
+    return `${name} ${((percent ?? 0) * 100).toFixed(0)}%`;
+  }}
 >
   {statusData.map((entry, index) => (
     <Cell key={`cell-${index}`} fill={entry.color} />
   ))}
 </Pie>
+
 
                                         <Tooltip
                                             contentStyle={{
