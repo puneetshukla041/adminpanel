@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, ChangeEvent } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import {
   FaEdit,
   FaTrash,
@@ -18,38 +18,66 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // --- Type Definitions ---
 type Registration = {
-  ticketNo: string;
+  _id: string;
+  ticketNo: number;
   fullName: string;
   email: string;
-  phoneNumber: string;
-  dob: string;
-  experience: string;
-  institution: string;
-  callDateTime: string;
-  hearAboutUs: string;
-  currentProfession: string;
-  specialization: string;
-  learningGoals: string;
-  trainingPrograms: string | string[];
-  additionalPrograms: string | string[];
+  phoneNumber?: string;
+  dob?: string;
+  experience?: string;
+  institution?: string;
+  callDateTime?: string;
+  hearAboutUs?: string;
+  currentProfession?: string;
+  specialization?: string;
+  learningGoals?: string;
+  trainingPrograms?: string[];
+  additionalPrograms?: string[];
   status: "upcoming" | "pending" | "completed";
   uploadId?: string;
+  uploadName?: string;
+  isExpired?: boolean;
 };
 
-// --- Mock Data ---
+// --- Mock Data for Dropdown Options ---
 const allPrograms = [
-  "Program A",
-  "Program B",
-  "Program C",
-  "Program D",
-  "Program E",
+  "Surgeon Training",
+  "Surgical Staff Training",
+  "Anesthesia Training for Robotic Surgery",
+];
+const allAdditionalPrograms = [
+  "MantraSync Tele-Surgery Program",
+  "Animal Lab Training",
+  "Cadaver Lab Training",
 ];
 const allSpecializations = [
-  "Specialization X",
-  "Specialization Y",
-  "Specialization Z",
+  "Urology",
+  "Gynecology",
+  "Cardiac",
+  "Thoracic",
+  "General Surgery",
+  "Head and Neck",
+  "Colorectal",
+  "Pediatric",
+  "Oncology",
+  "Others",
 ];
-const allHearAboutUs = ["Google", "Facebook", "Friend", "Website"];
+const allHearAboutUs = [
+  "Website",
+  "Social Media",
+  "Colleague Referral",
+  "Conference",
+  "Other",
+];
+const allProfessions = [
+  "Surgeon",
+  "Assistant Surgeon",
+  "Anesthesiologist",
+  "Nurse",
+  "Technician",
+  "Bio Medical Engineer",
+  "Others",
+];
 
 // --- Reusable Components ---
 
@@ -135,7 +163,6 @@ const SkeletonLoader = () => (
   </div>
 );
 
-// New Modal for Exporting Data
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -207,13 +234,11 @@ export default function ManageDatabasePage() {
   const [editing, setEditing] = useState<Registration | null>(null);
   const [viewing, setViewing] = useState<Registration | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [ticketNoToDelete, setTicketNoToDelete] = useState<string | null>(null);
+  const [idToDelete, setIdToDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportingId, setExportingId] = useState<string | "all" | undefined>(undefined);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const API = "http://localhost/backend-php";
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
@@ -223,10 +248,10 @@ export default function ManageDatabasePage() {
   const fetchRegistrations = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/get_registrations.php`);
+      const res = await fetch(`/api/registrations`);
       if (!res.ok) throw new Error("Network response was not ok.");
       const data = await res.json();
-      setRegistrations(data);
+      setRegistrations(data.data);
       showToast("Data refreshed successfully.", "success");
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -237,9 +262,9 @@ export default function ManageDatabasePage() {
   };
 
   const handleDelete = async () => {
-    if (ticketNoToDelete === null) return;
+    if (idToDelete === null) return;
     try {
-      const res = await fetch(`${API}/delete_registration.php?ticketNo=${ticketNoToDelete}`, {
+      const res = await fetch(`/api/registrations/${idToDelete}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -254,66 +279,62 @@ export default function ManageDatabasePage() {
       showToast("Delete failed. An unexpected error occurred.", "error");
     } finally {
       setShowConfirmModal(false);
-      setTicketNoToDelete(null);
+      setIdToDelete(null);
     }
   };
 
-  const handleConfirmDelete = (ticketNo: string) => {
-    setTicketNoToDelete(ticketNo);
+  const handleConfirmDelete = (_id: string) => {
+    setIdToDelete(_id);
     setShowConfirmModal(true);
   };
 
-  const handleEditSubmit = async () => {
-    if (!editing) return;
-    try {
-      const formData = new FormData();
-      Object.entries(editing).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          formData.append(key, value.join(', '));
-        } else if (value !== undefined && value !== null) {
-          formData.append(key, value);
-        }
-      });
-      if (selectedFile) {
-        formData.append("uploadFile", selectedFile);
-      } else if (editing.uploadId === '') {
-        formData.append("uploadId", '');
-      }
+const handleEditSubmit = async () => {
+  if (!editing) return;
 
-      const res = await fetch(`${API}/update_registration.php`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditing(null);
-        setSelectedFile(null);
-        showToast("Registration successfully updated.", "success");
-        fetchRegistrations();
-      } else {
-        showToast(`Update failed: ${data.error}`, "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Update failed. An unexpected error occurred.", "error");
+  try {
+    const payload = {
+      ...editing,
+      ticketNo: Number(editing.ticketNo || 0),
+      // Add other numeric fields here if any
+    };
+
+    const res = await fetch(`/api/registrations/${editing._id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      setEditing(null);
+      setSelectedFile(null);
+      showToast("Registration successfully updated.", "success");
+      fetchRegistrations();
+    } else {
+      showToast(`Update failed: ${data.error}`, "error");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    showToast("Update failed. An unexpected error occurred.", "error");
+  }
+};
 
-  const updateStatus = async (ticketNo: string, newStatus: Registration['status']) => {
-    const originalStatus = registrations.find(reg => reg.ticketNo === ticketNo)?.status;
+
+  const updateStatus = async (_id: string, newStatus: Registration['status']) => {
+    const originalStatus = registrations.find(reg => reg._id === _id)?.status;
     
     // Optimistic update
     setRegistrations(prev =>
       prev.map(reg =>
-        reg.ticketNo === ticketNo ? { ...reg, status: newStatus } : reg
+        reg._id === _id ? { ...reg, status: newStatus } : reg
       )
     );
 
     try {
-      const res = await fetch(`${API}/update_status.php`, {
-        method: "POST",
+      const res = await fetch(`/api/registrations/${_id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketNo, status: newStatus }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
       if (data.success) {
@@ -322,7 +343,7 @@ export default function ManageDatabasePage() {
         // Revert to original status if API call fails
         setRegistrations(prev =>
           prev.map(reg =>
-            reg.ticketNo === ticketNo ? { ...reg, status: originalStatus || reg.status } : reg
+            reg._id === _id ? { ...reg, status: originalStatus || reg.status } : reg
           )
         );
         showToast(`Status update failed: ${data.error}`, "error");
@@ -332,30 +353,30 @@ export default function ManageDatabasePage() {
       // Revert to original status on network error
       setRegistrations(prev =>
         prev.map(reg =>
-          reg.ticketNo === ticketNo ? { ...reg, status: originalStatus || reg.status } : reg
+          reg._id === _id ? { ...reg, status: originalStatus || reg.status } : reg
         )
       );
       showToast("Status update failed. An unexpected error occurred.", "error");
     }
   };
 
-  const handleExport = (format: "pdf" | "excel", ticketNo?: string | "all") => {
-    console.log(`Export request: Ticket No=${ticketNo}, Format=${format}`);
-    alert(`Exporting ${ticketNo === "all" ? "all data" : `registration with Ticket No. ${ticketNo}`} as ${format}. This is a placeholder action, no file will be downloaded.`);
+  const handleExport = (format: "pdf" | "excel", _id?: string | "all") => {
+    console.log(`Export request: ID=${_id}, Format=${format}`);
+    alert(`Exporting ${_id === "all" ? "all data" : `registration with ID ${_id}`} as ${format}. This is a placeholder action, no file will be downloaded.`);
   };
 
   useEffect(() => {
     fetchRegistrations();
   }, []);
 
-  const formatDateForInput = (dateString: string) => {
+  const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return "";
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "";
     return date.toISOString().split("T")[0];
   };
 
-  const formatDateTimeForInput = (dateTimeString: string) => {
+  const formatDateTimeForInput = (dateTimeString: string | undefined) => {
     if (!dateTimeString) return "";
     const date = new Date(dateTimeString);
     if (isNaN(date.getTime())) return "";
@@ -371,39 +392,13 @@ export default function ManageDatabasePage() {
     }
   };
 
-  const handleProgramChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    if (!editing) return;
-    const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-    setEditing({ ...editing, trainingPrograms: selectedOptions });
-  };
-  
-  const handleAdditionalProgramChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    if (!editing) return;
-    const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-    setEditing({ ...editing, additionalPrograms: selectedOptions });
+  const prepareForEdit = (reg: Registration) => {
+    setEditing(reg);
+    setViewing(null);
   };
 
-  const prepareForEdit = (reg: Registration) => {
-    const editData = { ...reg };
-    if (typeof editData.trainingPrograms === "string") {
-      editData.trainingPrograms = editData.trainingPrograms.split(', ').filter(p => p);
-    }
-    if (typeof editData.additionalPrograms === "string") {
-      editData.additionalPrograms = editData.additionalPrograms.split(', ').filter(p => p);
-    }
-    setEditing(editData);
-    setViewing(null); // Close view modal if open
-  };
-  
   const prepareForView = (reg: Registration) => {
-    const viewData = { ...reg };
-    if (typeof viewData.trainingPrograms === "string") {
-      viewData.trainingPrograms = viewData.trainingPrograms.split(', ').filter(p => p);
-    }
-    if (typeof viewData.additionalPrograms === "string") {
-      viewData.additionalPrograms = viewData.additionalPrograms.split(', ').filter(p => p);
-    }
-    setViewing(viewData);
+    setViewing(reg);
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -414,9 +409,14 @@ export default function ManageDatabasePage() {
 
   const clearFile = () => {
     if (editing) {
-      setEditing({ ...editing, uploadId: '' });
+      setEditing({ ...editing, uploadId: '', uploadName: '' });
       setSelectedFile(null);
     }
+  };
+
+  const isSelected = (value: string, key: 'trainingPrograms' | 'additionalPrograms') => {
+    if (!editing || !editing[key]) return false;
+    return (editing[key] as string[]).includes(value);
   };
   
   return (
@@ -481,7 +481,7 @@ export default function ManageDatabasePage() {
                   {registrations.length > 0 ? (
                     registrations.map((r, index) => (
                       <motion.tr
-                        key={r.ticketNo}
+                        key={r._id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -491,11 +491,11 @@ export default function ManageDatabasePage() {
                         <td className="p-3 whitespace-nowrap">{r.ticketNo}</td>
                         <td className="p-3 whitespace-nowrap">{r.fullName}</td>
                         <td className="p-3 whitespace-nowrap text-blue-600 font-medium">{r.email}</td>
-                        <td className="p-3 whitespace-nowrap hidden sm:table-cell">{r.currentProfession}</td>
+                        <td className="p-3 whitespace-nowrap hidden sm:table-cell">{r.currentProfession || 'N/A'}</td>
                         <td className="p-3 whitespace-nowrap hidden sm:table-cell">
                           <select
                             value={r.status}
-                            onChange={(e) => updateStatus(r.ticketNo, e.target.value as Registration['status'])}
+                            onChange={(e) => updateStatus(r._id, e.target.value as Registration['status'])}
                             className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2`}
                           >
                             <option value="upcoming">Upcoming</option>
@@ -503,7 +503,7 @@ export default function ManageDatabasePage() {
                             <option value="completed">Completed</option>
                           </select>
                         </td>
-                        <td className="p-3 whitespace-nowrap hidden md:table-cell">{r.institution}</td>
+                        <td className="p-3 whitespace-nowrap hidden md:table-cell">{r.institution || 'N/A'}</td>
                         <td className="p-3 whitespace-nowrap flex space-x-2">
                           <button
                             className="bg-blue-600 text-white px-2 py-1 rounded-md flex items-center hover:bg-blue-700 transition-colors duration-200 text-sm cursor-pointer"
@@ -513,14 +513,14 @@ export default function ManageDatabasePage() {
                           </button>
                           <button
                             className="bg-rose-600 text-white px-2 py-1 rounded-md flex items-center hover:bg-rose-700 transition-colors duration-200 text-sm cursor-pointer"
-                            onClick={() => handleConfirmDelete(r.ticketNo)}
+                            onClick={() => handleConfirmDelete(r._id)}
                           >
                             <FaTrash className="md:mr-1" /> <span className="hidden md:inline">Delete</span>
                           </button>
                           <button
                             className="bg-gray-700 text-white px-2 py-1 rounded-md flex items-center hover:bg-gray-800 transition-colors duration-200 text-sm cursor-pointer"
                             onClick={() => {
-                              setExportingId(r.ticketNo);
+                              setExportingId(r._id);
                               setExportModalOpen(true);
                             }}
                           >
@@ -587,6 +587,8 @@ export default function ManageDatabasePage() {
                       displayValue = isNaN(date.getTime()) ? "N/A" : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
                     } else if (key === 'uploadId' && value) {
                       isFileLink = true;
+                    } else if (key === "_id") {
+                      return null; // Skip _id in the view modal
                     }
 
                     return (
@@ -600,7 +602,7 @@ export default function ManageDatabasePage() {
                         <span className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</span>
                         {isFileLink ? (
                           <a 
-                            href={`${API}/${value}`} 
+                            href={`/api/uploads/${value}`} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center transition-colors hover:bg-blue-700 cursor-pointer"
@@ -644,174 +646,235 @@ export default function ManageDatabasePage() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                  {Object.entries(editing).map(([key, value]) => {
-                    const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
-                    
-                    const commonInputClasses = "border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm";
-                    
-                    switch (key) {
-                      case "ticketNo":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <input
-                              type="text"
-                              value={value as string}
-                              readOnly
-                              disabled
-                              className={`${commonInputClasses} bg-gray-100 cursor-not-allowed`}
-                            />
-                          </div>
-                        );
-                      case "dob":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <input
-                              type="date"
-                              value={formatDateForInput(value as string)}
-                              onChange={(e) => setEditing({ ...editing, [key]: e.target.value })}
-                              className={commonInputClasses}
-                            />
-                          </div>
-                        );
-                      case "callDateTime":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <input
-                              type="datetime-local"
-                              value={formatDateTimeForInput(value as string)}
-                              onChange={(e) => setEditing({ ...editing, [key]: e.target.value })}
-                              className={commonInputClasses}
-                            />
-                          </div>
-                        );
-                      case "trainingPrograms":
-                      case "additionalPrograms":
-                        const programsArray = Array.isArray(value) ? value : (value as string)?.split(', ').map(p => p.trim()) || [];
-                        return (
-                          <div key={key} className="col-span-1">
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <select
-                              multiple
-                              value={programsArray}
-                              onChange={e => {
-                                const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-                                setEditing({ ...editing, [key]: selectedOptions });
-                              }}
-                              className={`${commonInputClasses} h-32 w-full cursor-pointer`}
-                            >
-                              {allPrograms.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </div>
-                        );
-                      case "specialization":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <select
-                              value={value as string}
-                              onChange={(e) => setEditing({ ...editing, specialization: e.target.value })}
-                              className={`${commonInputClasses} w-full cursor-pointer`}
-                            >
-                              <option value="">Select Specialization</option>
-                              {allSpecializations.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                          </div>
-                        );
-                      case "hearAboutUs":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <select
-                              value={value as string}
-                              onChange={(e) => setEditing({ ...editing, hearAboutUs: e.target.value })}
-                              className={`${commonInputClasses} w-full cursor-pointer`}
-                            >
-                              <option value="">How did you hear about us?</option>
-                              {allHearAboutUs.map(h => <option key={h} value={h}>{h}</option>)}
-                            </select>
-                          </div>
-                        );
-                      case "status":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <select
-                              value={value as string}
-                              onChange={(e) => setEditing({ ...editing, status: e.target.value as Registration['status'] })}
-                              className={`${commonInputClasses} w-full cursor-pointer`}
-                            >
-                              <option value="upcoming">Upcoming</option>
-                              <option value="pending">Pending</option>
-                              <option value="completed">Completed</option>
-                            </select>
-                          </div>
-                        );
-                      case "uploadId":
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <div className="flex flex-col gap-2">
-                               {editing.uploadId && !selectedFile ? (
-                                <div className="flex items-center gap-2">
-                                  <a
-                                    href={`${API}/${editing.uploadId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-blue-500 text-white text-sm font-medium py-2 px-4 rounded-lg flex items-center transition-colors hover:bg-blue-600 cursor-pointer"
-                                  >
-                                    <FaEye className="mr-2" /> View Current File
-                                  </a>
-                                  <button
-                                    type="button"
-                                    onClick={clearFile}
-                                    className="bg-rose-500 text-white text-sm font-medium p-2 rounded-lg flex items-center transition-colors hover:bg-rose-600 cursor-pointer"
-                                  >
-                                    <FaRegWindowClose />
-                                  </button>
-                                </div>
-                              ) : selectedFile ? (
-                                <div className="text-sm text-gray-700 flex items-center">
-                                  <FaUpload className="mr-2" />
-                                  <span>{selectedFile.name}</span>
-                                  <button type="button" onClick={() => setSelectedFile(null)} className="ml-auto text-rose-500 hover:text-rose-700">
-                                    <FaTimes />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <label htmlFor="file-upload" className="w-full bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-300 cursor-pointer">
-                                    <FaUpload className="mr-2" />
-                                    Choose File
-                                  </label>
-                                  <input 
-                                    id="file-upload" 
-                                    type="file" 
-                                    onChange={handleFileChange} 
-                                    className="hidden"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      default:
-                        return (
-                          <div key={key} className="col-span-1">
-                            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">{label}</label>
-                            <input
-                              type="text"
-                              value={value as string}
-                              onChange={(e) => setEditing({ ...editing, [key]: e.target.value })}
-                              placeholder={label}
-                              className={commonInputClasses}
-                            />
-                          </div>
-                        );
-                    }
-                  })}
+                  {/* Full Name */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={editing.fullName}
+                      onChange={(e) => setEditing({ ...editing, fullName: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Email */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editing.email}
+                      onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Phone Number */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={editing.phoneNumber || ''}
+                      onChange={(e) => setEditing({ ...editing, phoneNumber: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* DOB */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={formatDateForInput(editing.dob)}
+                      onChange={(e) => setEditing({ ...editing, dob: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Experience */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Experience</label>
+                    <input
+                      type="text"
+                      value={editing.experience || ''}
+                      onChange={(e) => setEditing({ ...editing, experience: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Institution */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Institution</label>
+                    <input
+                      type="text"
+                      value={editing.institution || ''}
+                      onChange={(e) => setEditing({ ...editing, institution: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Call Date/Time */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Call Date/Time</label>
+                    <input
+                      type="datetime-local"
+                      value={formatDateTimeForInput(editing.callDateTime)}
+                      onChange={(e) => setEditing({ ...editing, callDateTime: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Hear About Us */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">How Did You Hear About Us?</label>
+                    <select
+                      value={editing.hearAboutUs || ''}
+                      onChange={(e) => setEditing({ ...editing, hearAboutUs: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    >
+                      <option value="">Select an option</option>
+                      {allHearAboutUs.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Current Profession */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Current Profession</label>
+                    <select
+                      value={editing.currentProfession || ''}
+                      onChange={(e) => setEditing({ ...editing, currentProfession: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    >
+                      <option value="">Select an option</option>
+                      {allProfessions.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Specialization */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Specialization</label>
+                    <select
+                      value={editing.specialization || ''}
+                      onChange={(e) => setEditing({ ...editing, specialization: e.target.value })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    >
+                      <option value="">Select an option</option>
+                      {allSpecializations.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Learning Goals */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Learning Goals</label>
+                    <textarea
+                      value={editing.learningGoals || ''}
+                      onChange={(e) => setEditing({ ...editing, learningGoals: e.target.value })}
+                      rows={3}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                  {/* Status */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Status</label>
+                    <select
+                      value={editing.status}
+                      onChange={(e) => setEditing({ ...editing, status: e.target.value as Registration['status'] })}
+                      className="border border-gray-300 p-3 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                    >
+                      <option value="upcoming">Upcoming</option>
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                   {/* Training Programs */}
+                   <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Training Programs</label>
+                    <div className="space-y-2 mt-2">
+                      {allPrograms.map(p => (
+                        <div key={p} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`tp-${p}`}
+                            value={p}
+                            checked={isSelected(p, 'trainingPrograms')}
+                            onChange={(e) => {
+                              const updatedPrograms = e.target.checked
+                                ? [...(editing.trainingPrograms || []), p]
+                                : (editing.trainingPrograms || []).filter(prog => prog !== p);
+                              setEditing({ ...editing, trainingPrograms: updatedPrograms });
+                            }}
+                            className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor={`tp-${p}`} className="text-sm text-gray-700">{p}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Additional Programs */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Additional Programs</label>
+                    <div className="space-y-2 mt-2">
+                      {allAdditionalPrograms.map(p => (
+                        <div key={p} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`ap-${p}`}
+                            value={p}
+                            checked={isSelected(p, 'additionalPrograms')}
+                            onChange={(e) => {
+                              const updatedPrograms = e.target.checked
+                                ? [...(editing.additionalPrograms || []), p]
+                                : (editing.additionalPrograms || []).filter(prog => prog !== p);
+                              setEditing({ ...editing, additionalPrograms: updatedPrograms });
+                            }}
+                            className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor={`ap-${p}`} className="text-sm text-gray-700">{p}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Upload ID */}
+                  <div className="col-span-1">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Upload ID</label>
+                    <div className="flex flex-col gap-2">
+                       {editing.uploadId && !selectedFile ? (
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`/api/uploads/${editing.uploadId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="bg-blue-500 text-white text-sm font-medium py-2 px-4 rounded-lg flex items-center transition-colors hover:bg-blue-600 cursor-pointer"
+                          >
+                            <FaEye className="mr-2" /> View Current File
+                          </a>
+                          <button
+                            type="button"
+                            onClick={clearFile}
+                            className="bg-rose-500 text-white text-sm font-medium p-2 rounded-lg flex items-center transition-colors hover:bg-rose-600 cursor-pointer"
+                          >
+                            <FaRegWindowClose />
+                          </button>
+                        </div>
+                      ) : selectedFile ? (
+                        <div className="text-sm text-gray-700 flex items-center">
+                          <FaUpload className="mr-2" />
+                          <span>{selectedFile.name}</span>
+                          <button type="button" onClick={() => setSelectedFile(null)} className="ml-auto text-rose-500 hover:text-rose-700">
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <label htmlFor="file-upload" className="w-full bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-300 cursor-pointer">
+                            <FaUpload className="mr-2" />
+                            Choose File
+                          </label>
+                          <input 
+                            id="file-upload" 
+                            type="file" 
+                            onChange={handleFileChange} 
+                            className="hidden"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end mt-6 gap-3">

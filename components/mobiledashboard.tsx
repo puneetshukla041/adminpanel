@@ -3,14 +3,69 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import * as XLSX from 'xlsx'; // Assuming you have this library installed for Excel export.
+import * as XLSX from 'xlsx';
 import {
     ChevronUp, ChevronDown, Users, CheckCircle, Activity, Loader2,
     Download, FileText, FileSpreadsheet, Eye, Filter, User, Mail, Briefcase, SortAsc, SortDesc, ArrowDown, ArrowUp
 } from 'lucide-react';
 
-import { Modal } from './ui/Modal';
-import { Card } from './ui/Card';
+// Reusable Modal Component (optimized for mobile)
+const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; }) => {
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4 md:p-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                >
+                    <motion.div
+                        className="bg-white rounded-2xl shadow-xl w-full max-h-[95vh] overflow-y-auto transform transition-all sm:max-w-md md:max-w-3xl lg:max-w-5xl"
+                        initial={{ scale: 0.9, opacity: 0, y: 50 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-end p-4">
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 md:p-8">
+                            {children}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
+// Reusable Card Component
+const Card = ({ icon, title, value, description, delay = 0 }: { icon: React.ReactNode; title: string; value: number; description: string; delay?: number; }) => (
+    <motion.div
+        className="flex flex-col items-start bg-white rounded-2xl shadow-md p-6 border-2 border-gray-200 transition-transform duration-300 hover:shadow-xl hover:scale-105"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay }}
+    >
+        <div className="flex items-center mb-3">
+            <div className="bg-blue-100 text-blue-600 rounded-full p-2.5 flex items-center justify-center">
+                {icon}
+            </div>
+        </div>
+        <div className="flex flex-col">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{title}</h3>
+            <p className="text-4xl font-extrabold text-blue-600 mb-2">{value}</p>
+            <p className="text-sm text-gray-500">{description}</p>
+        </div>
+    </motion.div>
+);
 
 // Icon mapping for `lucide-react`
 const IconUsers = Users;
@@ -96,13 +151,13 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-2">
                 Registration Details
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-sm md:text-base text-gray-600 mb-6">
                 Comprehensive profile for <span className="font-semibold text-blue-600">{registration.fullName}</span>.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70vh] pr-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70vh] pr-4">
                 {Object.entries(registration)
                     .filter(([key]) => key !== "__v" && key !== "uploadName")
                     .map(([key, value]) => (
@@ -126,7 +181,7 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
     );
 };
 
-// Reusable Modal for Exporting Data
+// Reusable Modal for Exporting Data (optimized for mobile)
 const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boolean; onClose: () => void; onExport: (format: 'pdf' | 'excel', registrationId: string | string[] | 'all') => void; exportingId: string | string[] | 'all' | undefined; }) => {
     const handleExport = (format: 'pdf' | 'excel') => {
         onExport(format, exportingId!);
@@ -143,7 +198,7 @@ const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boole
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <div className="bg-white text-gray-900 rounded-2xl p-6 shadow-2xl relative max-w-sm w-full border-2 border-gray-200" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white text-gray-900 rounded-2xl p-6 shadow-2xl relative w-full border-2 border-gray-200" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
                 <p className="text-sm text-gray-600 mb-5">{description}</p>
                 <div className="flex flex-col gap-4">
@@ -165,8 +220,10 @@ const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boole
     );
 };
 
-// Data Visualization Component
+// Data Visualization Component (now with a collapsible section)
 const DataVisualizations = ({ registrations }: { registrations: Registration[]; }) => {
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
     const monthlyData = useMemo(() => {
         const data: { [key: string]: number } = {};
         registrations.forEach(reg => {
@@ -193,58 +250,78 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
     }, [registrations]);
 
     return (
-        <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Training Status Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-4 bg-gray-50 rounded-2xl">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                            <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                            <Tooltip
-                                cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
-                                contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
-                            />
-                            <Bar dataKey="registrations" fill="#3b82f6" radius={[10, 10, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={statusData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
-                            >
-                                {statusData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: '#fff',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                }}
-                            />
-                            <Legend verticalAlign="bottom" height={36} />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
+        <section className="mb-8 p-4 md:p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
+            <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="w-full flex justify-between items-center text-left py-2"
+            >
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+                    Training Status Analytics
+                </h2>
+                {isCollapsed ? <ChevronDown className="h-6 w-6 text-gray-500" /> : <ChevronUp className="h-6 w-6 text-gray-500" />}
+            </button>
+            <AnimatePresence>
+                {!isCollapsed && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden pt-4"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="p-4 bg-gray-50 rounded-2xl">
+                                <h3 className="text-md font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
+                                        />
+                                        <Bar dataKey="registrations" fill="#3b82f6" radius={[10, 10, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
+                                <h3 className="text-md font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={statusData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
+                                        >
+                                            {statusData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                border: 'none',
+                                                borderRadius: '12px',
+                                            }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 };
 
-// Filter Sidebar Component (Full-width content)
+// Filter Sidebar Component (Full-width content on mobile)
 const FilterSidebar = ({
     isOpen, onClose, filterStatus, setFilterStatus, startDate, setStartDate, endDate, setEndDate, handleDatePreset, dateRangePreset
 }: {
@@ -267,7 +344,7 @@ const FilterSidebar = ({
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: "tween", duration: 0.3 }}
-                    className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-lg p-6 overflow-y-auto flex flex-col"
+                    className="fixed inset-y-0 right-0 z-[100] w-full max-w-sm bg-white shadow-lg p-6 overflow-y-auto flex flex-col"
                 >
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -341,9 +418,7 @@ const FilterSidebar = ({
     );
 };
 
-
-
-export default function DashboardPage() {
+export default function MobileDashboardPage() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -401,11 +476,12 @@ export default function DashboardPage() {
                 );
             } else {
                 console.error('Failed to update status:', data.error);
-                alert('Failed to update status. Please try again.');
+                // Replaced alert() with console log for immersive environment
+                console.log('Failed to update status. Please try again.');
             }
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('An error occurred while updating the status.');
+            console.log('An error occurred while updating the status.');
         } finally {
             setLoading(false);
         }
@@ -445,7 +521,7 @@ export default function DashboardPage() {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Export error:', error);
-            alert('An error occurred while exporting the data.');
+            console.log('An error occurred while exporting the data.');
         } finally {
             setLoading(false);
         }
@@ -566,13 +642,8 @@ export default function DashboardPage() {
 
     const columns: { label: string; key: keyof Registration | 'actions' | 'selection' }[] = [
         { label: 'Select', key: 'selection' },
-        { label: 'Ticket No.', key: 'ticketNo' },
         { label: 'Full Name', key: 'fullName' },
-        { label: 'Email', key: 'email' },
-        { label: 'Profession', key: 'currentProfession' },
-        { label: 'Institution', key: 'institution' },
         { label: 'Status', key: 'status' },
-        { label: 'Ticket State', key: 'isExpired' },
         { label: 'Actions', key: 'actions' },
     ];
 
@@ -618,36 +689,36 @@ export default function DashboardPage() {
                     {/* Header */}
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between mb-8">
                         <div>
-                            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Training Dashboard</h1>
-                            <p className="text-lg text-gray-600 mt-1">
-                                A comprehensive overview of surgical training registrations and their status.
+                            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">Training Dashboard</h1>
+                            <p className="text-sm sm:text-lg text-gray-600 mt-1">
+                                A comprehensive overview of surgical training registrations.
                             </p>
                         </div>
                         <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
                             <button
                                 onClick={() => setIsFilterSidebarOpen(true)}
-                                className="w-full sm:w-auto bg-gray-200 text-gray-800 px-6 py-3 rounded-xl flex items-center justify-center hover:bg-gray-300 transition-all duration-200 shadow-md"
+                                className="w-full sm:w-auto bg-gray-200 text-gray-800 px-4 py-2 sm:px-6 sm:py-3 rounded-xl flex items-center justify-center hover:bg-gray-300 transition-all duration-200 shadow-md"
                             >
                                 <IconFilter className="mr-2 h-5 w-5" />
-                                Advanced Filters
+                                Filters
                             </button>
                             <button
                                 onClick={() => {
                                     setExportingId('all');
                                     setExportModalOpen(true);
                                 }}
-                                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all duration-200 shadow-lg"
+                                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all duration-200 shadow-lg"
                             >
                                 <IconDownload className="mr-2 h-5 w-5" />
-                                Export All Data
+                                Export All
                             </button>
                         </div>
                     </header>
 
                     {/* Key Metrics Section */}
                     <section className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Key Training Metrics</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Key Training Metrics</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <Card
                                 icon={<IconUsers className="h-7 w-7" />}
                                 title="Total Registrations"
@@ -678,23 +749,23 @@ export default function DashboardPage() {
                         </div>
                     </section>
 
-                    {/* Data Visualization Section */}
+                    {/* Data Visualization Section (now collapsible for mobile) */}
                     <DataVisualizations registrations={registrations} />
 
                     {/* Registration Data Table Section */}
-                    <section className="bg-white p-6 rounded-2xl shadow-xl ring-1 ring-gray-200">
+                    <section className="bg-white p-4 md:p-6 rounded-2xl shadow-xl ring-1 ring-gray-200">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">Training Registration Database</h2>
+                            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-0">Registration Database</h2>
                             <div className="relative w-full md:w-80">
                                 <input
                                     type="text"
-                                    placeholder="Search by name, email, or profession..."
+                                    placeholder="Search by name or email..."
                                     value={search}
                                     onChange={(e) => {
                                         setSearch(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all duration-200"
+                                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all duration-200"
                                 />
                                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 fill-current">
@@ -744,7 +815,7 @@ export default function DashboardPage() {
                             )}
                         </AnimatePresence>
 
-                        <div className="overflow-x-auto -mx-6 md:mx-0">
+                        <div className="overflow-x-auto -mx-4 sm:-mx-6 md:mx-0">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -752,7 +823,7 @@ export default function DashboardPage() {
                                             <th
                                                 key={col.key}
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none min-w-[100px]"
+                                                className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none"
                                                 onClick={() => {
                                                     if (col.key !== 'actions' && col.key !== 'selection') {
                                                         toggleSort(col.key as keyof Registration);
@@ -798,55 +869,47 @@ export default function DashboardPage() {
                                                     exit={{ opacity: 0, y: -20 }}
                                                     className={`hover:bg-gray-50 transition-colors duration-200 ${r.isExpired ? 'bg-gray-200 opacity-60' : ''}`}
                                                 >
-                                                    {columns.map((col) => (
-                                                        <td
-                                                            key={col.key}
-                                                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 max-w-[200px] overflow-hidden text-ellipsis"
+                                                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
+                                                            checked={selectedRows.has(r._id)}
+                                                            onChange={() => handleCheckboxChange(r._id)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium max-w-[150px] overflow-hidden text-ellipsis">
+                                                        {r.fullName}
+                                                    </td>
+                                                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                                        <select
+                                                            value={r.status}
+                                                            onChange={(e) => updateStatus(r._id, e.target.value as Registration['status'])}
+                                                            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2`}
                                                         >
-                                                            {col.key === 'selection' ? (
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
-                                                                    checked={selectedRows.has(r._id)}
-                                                                    onChange={() => handleCheckboxChange(r._id)}
-                                                                />
-                                                            ) : col.key === 'actions' ? (
-                                                                <div className="flex space-x-2">
-                                                                    <button
-                                                                        onClick={() => setViewing(r)}
-                                                                        className="text-blue-600 hover:text-blue-800 transition-all duration-200 text-sm font-medium flex items-center hover:scale-110 active:scale-95 cursor-pointer"
-                                                                    >
-                                                                        <IconEye className="mr-1 h-4 w-4" /> View
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setExportingId(r._id);
-                                                                            setExportModalOpen(true);
-                                                                        }}
-                                                                        className="text-gray-600 hover:text-gray-800 transition-all duration-200 text-sm font-medium flex items-center hover:scale-110 active:scale-95 cursor-pointer"
-                                                                    >
-                                                                        <IconDownload className="mr-1 h-4 w-4" /> Export
-                                                                    </button>
-                                                                </div>
-                                                            ) : col.key === 'status' ? (
-                                                                <select
-                                                                    value={r.status}
-                                                                    onChange={(e) => updateStatus(r._id, e.target.value as Registration['status'])}
-                                                                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                                                                >
-                                                                    <option value="upcoming" className="bg-white text-gray-900">Upcoming</option>
-                                                                    <option value="pending" className="bg-white text-gray-900">Pending</option>
-                                                                    <option value="completed" className="bg-white text-gray-900">Completed</option>
-                                                                </select>
-                                                            ) : col.key === 'isExpired' ? (
-                                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase ${getTicketStateColor(r.isExpired)}`}>
-                                                                    {r.isExpired ? 'Expired' : 'Active'}
-                                                                </span>
-                                                            ) : (
-                                                                r[col.key as keyof Registration] as string | number
-                                                            )}
-                                                        </td>
-                                                    ))}
+                                                            <option value="upcoming" className="bg-white text-gray-900">Upcoming</option>
+                                                            <option value="pending" className="bg-white text-gray-900">Pending</option>
+                                                            <option value="completed" className="bg-white text-gray-900">Completed</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex space-x-2">
+                                                            <button
+                                                                onClick={() => setViewing(r)}
+                                                                className="text-blue-600 hover:text-blue-800 transition-all duration-200 text-sm font-medium flex items-center hover:scale-110 active:scale-95 cursor-pointer"
+                                                            >
+                                                                <IconEye className="mr-1 h-4 w-4" /> View
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setExportingId(r._id);
+                                                                    setExportModalOpen(true);
+                                                                }}
+                                                                className="text-gray-600 hover:text-gray-800 transition-all duration-200 text-sm font-medium flex items-center hover:scale-110 active:scale-95 cursor-pointer"
+                                                            >
+                                                                <IconDownload className="mr-1 h-4 w-4" /> Export
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                 </motion.tr>
                                             ))
                                         ) : (

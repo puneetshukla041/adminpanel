@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "framer-motion": "^12.23.12",
+    "html-pdf-node": "^1.0.8",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.1",
     "next": "15.5.2",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",

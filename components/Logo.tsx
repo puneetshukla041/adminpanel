@@ -1,7 +1,5 @@
 'use client'
 
-import Image from 'next/image'
-
 type LogoProps = {
   showText?: boolean
 }
@@ -13,7 +11,7 @@ export default function Logo({ showText = true }: LogoProps) {
         .premium-shiny-text {
           position: relative;
           font-weight: 800;
-          font-size: 1.15rem; /* Increased size */
+          font-size: 1.15rem;
           color: transparent;
           background: linear-gradient(
             90deg,
@@ -23,7 +21,7 @@ export default function Logo({ showText = true }: LogoProps) {
             #e5e7eb 75%,
             #9ca3af 100%
           );
-          background-size: 300% 100%; /* Larger background for smoother shine */
+          background-size: 300% 100%;
           background-clip: text;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;

@@ -2,8 +2,7 @@
 
 import "@/app/globals.css";
 import { useState } from "react";
-import Sidebar from "@/components/Sidebar"; // ✅ import Sidebar
- 
+import Sidebar from "@/components/Sidebar";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,7 +10,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen text-gray-800 bg-gray-100">
+<head>
+  {/* Start fully zoomed out, showing max content width */}
+  <meta name="viewport" content="width=device-width, initial-scale=0.68, maximum-scale=0.68, user-scalable=no" />
+</head>
+
+      <body className="flex min-h-screen text-gray-800 bg-gray-100 overflow-x-hidden">
         {/* Sidebar */}
         <Sidebar isOpen={isOpen} toggleSidebar={toggleSidebar} />
 
@@ -21,15 +25,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <button
             onClick={toggleSidebar}
             className="fixed top-4 left-4 z-[999] p-2 text-xl md:hidden rounded-full shadow-lg bg-gray-900 text-white"
+            aria-label="Toggle sidebar"
           >
-            {/* You can add a menu icon here (FaBars or Lucide Menu) */}
             ☰
           </button>
 
           {/* Page content */}
-          <main className="flex-1 p-6 md:p-8">{children}</main>
-
- 
+          <main className="flex-1 p-4 sm:p-6 md:p-8">{children}</main>
         </div>
       </body>
     </html>
