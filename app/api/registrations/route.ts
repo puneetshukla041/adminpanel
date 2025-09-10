@@ -1,17 +1,51 @@
-import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import Registration from '@/models/Registration';
+// src/app/api/registrations/route.ts
 
-export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+import RegistrationModel from '@/models/Registration'; // Assuming you have a Mongoose model
 
+// Connect to your database
+const connectDB = async () => {
+  if (mongoose.connections[0].readyState) {
+    return;
+  }
+  await mongoose.connect(process.env.MONGODB_URI!);
+};
+
+// GET all registrations
 export async function GET() {
+  await connectDB();
   try {
-    await connectDB();
-    const registrations = await Registration.find({});
+    const registrations = await RegistrationModel.find({});
     return NextResponse.json({ success: true, data: registrations });
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-    console.error('Error fetching registrations:', err);
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to fetch data' }, { status: 500 });
+  }
+}
+
+// PUT to update a single registration status
+export async function PUT(request: NextRequest) {
+  await connectDB();
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
+  }
+
+  const { status, isExpired } = await request.json();
+
+  try {
+    const updatedReg = await RegistrationModel.findByIdAndUpdate(
+      id,
+      { status, isExpired },
+      { new: true, runValidators: true }
+    );
+    if (!updatedReg) {
+      return NextResponse.json({ success: false, error: 'Registration not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: updatedReg });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to update status' }, { status: 500 });
   }
 }

@@ -88,7 +88,7 @@ export default function LoginPage() {
                     border border-gray-200 md:border-gray-700/50
                     md:text-gray-100">
         <h1 className="text-2xl font-semibold text-gray-900 md:text-gray-100 mb-2 text-center">
-          SSI Studios Admin
+          SSI CRS Admin
         </h1>
         <p className="text-gray-500 md:text-gray-300 text-sm text-center mb-6">
           Please log in to continue
