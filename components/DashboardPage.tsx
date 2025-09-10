@@ -3,14 +3,68 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import * as XLSX from 'xlsx'; // Assuming you have this library installed for Excel export.
 import {
     ChevronUp, ChevronDown, Users, CheckCircle, Activity, Loader2,
-    Download, FileText, FileSpreadsheet, Eye, Filter, User, Mail, Briefcase, SortAsc, SortDesc, ArrowDown, ArrowUp
+    Download, FileText, FileSpreadsheet, Eye, Filter, SortAsc, SortDesc, ArrowUp
 } from 'lucide-react';
 
-import { Modal } from './ui/Modal';
-import { Card } from './ui/Card';
+// Reusable Modal Component (optimized for mobile)
+const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode; }) => {
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4 md:p-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                >
+                    <motion.div
+                        className="bg-white rounded-2xl shadow-xl w-full max-h-[95vh] overflow-y-auto transform transition-all sm:max-w-md md:max-w-3xl lg:max-w-5xl"
+                        initial={{ scale: 0.9, opacity: 0, y: 50 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-end p-4">
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 md:p-8">
+                            {children}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
+// Reusable Card Component
+const Card = ({ icon, title, value, description, delay = 0 }: { icon: React.ReactNode; title: string; value: number; description: string; delay?: number; }) => (
+    <motion.div
+        className="flex flex-col items-start bg-white rounded-2xl shadow-md p-6 border-2 border-gray-200 transition-transform duration-300 hover:shadow-xl hover:scale-105"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay }}
+    >
+        <div className="flex items-center mb-3">
+            <div className="bg-blue-100 text-blue-600 rounded-full p-2.5 flex items-center justify-center">
+                {icon}
+            </div>
+        </div>
+        <div className="flex flex-col">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{title}</h3>
+            <p className="text-4xl font-extrabold text-blue-600 mb-2">{value}</p>
+            <p className="text-sm text-gray-500">{description}</p>
+        </div>
+    </motion.div>
+);
 
 // Icon mapping for `lucide-react`
 const IconUsers = Users;
@@ -73,8 +127,8 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
         isExpired: 'Ticket State',
     };
 
-    const formatValue = (key: keyof Registration, value: any) => {
-        if (key === 'callDateTime' && value) {
+    const formatValue = (key: keyof Registration, value: unknown) => {
+        if (key === 'callDateTime' && typeof value === 'string') {
             const date = new Date(value);
             if (!isNaN(date.getTime())) {
                 return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
@@ -83,7 +137,7 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
         if ((key === 'trainingPrograms' || key === 'additionalPrograms') && Array.isArray(value)) {
             return value.join(', ');
         }
-        if (key === 'uploadId' && value) {
+        if (key === 'uploadId' && typeof value === 'string') {
             const fileUrl = `/api/files?id=${value}`;
             return (
                 <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
@@ -129,7 +183,9 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
 // Reusable Modal for Exporting Data
 const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boolean; onClose: () => void; onExport: (format: 'pdf' | 'excel', registrationId: string | string[] | 'all') => void; exportingId: string | string[] | 'all' | undefined; }) => {
     const handleExport = (format: 'pdf' | 'excel') => {
-        onExport(format, exportingId!);
+        if (exportingId) {
+            onExport(format, exportingId);
+        }
         onClose();
     };
 
@@ -167,6 +223,8 @@ const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boole
 
 // Data Visualization Component
 const DataVisualizations = ({ registrations }: { registrations: Registration[]; }) => {
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
     const monthlyData = useMemo(() => {
         const data: { [key: string]: number } = {};
         registrations.forEach(reg => {
@@ -180,8 +238,11 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         });
         return Object.entries(data).map(([name, count]) => ({ name, registrations: count }));
     }, [registrations]);
+    
+    // Type definition for pie chart data
+    type PieChartData = { name: string; value: number; color: string; };
 
-    const statusData = useMemo(() => {
+    const statusData: PieChartData[] = useMemo(() => {
         const upcomingCount = registrations.filter(r => r.status === 'upcoming').length;
         const pendingCount = registrations.filter(r => r.status === 'pending').length;
         const completedCount = registrations.filter(r => r.status === 'completed').length;
@@ -194,52 +255,73 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
 
     return (
         <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Training Status Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-4 bg-gray-50 rounded-2xl">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                            <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
-                            <Tooltip
-                                cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
-                                contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
-                            />
-                            <Bar dataKey="registrations" fill="#3b82f6" radius={[10, 10, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={statusData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
-                            >
-                                {statusData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: '#fff',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                }}
-                            />
-                            <Legend verticalAlign="bottom" height={36} />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
+            <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="w-full flex justify-between items-center text-left py-2"
+            >
+                <h2 className="text-2xl font-bold text-gray-900">
+                    Training Status Analytics
+                </h2>
+                {isCollapsed ? <ChevronDown className="h-6 w-6 text-gray-500" /> : <ChevronUp className="h-6 w-6 text-gray-500" />}
+            </button>
+            <AnimatePresence>
+                {!isCollapsed && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden pt-4"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="p-4 bg-gray-50 rounded-2xl">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
+                                        />
+                                        <Bar dataKey="registrations" fill="#3b82f6" radius={[10, 10, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+<Pie
+  data={statusData}
+  dataKey="value"
+  nameKey="name"
+  cx="50%"
+  cy="50%"
+  outerRadius={80}
+  fill="#8884d8"
+  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+>
+  {statusData.map((entry, index) => (
+    <Cell key={`cell-${index}`} fill={entry.color} />
+  ))}
+</Pie>
+
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                border: 'none',
+                                                borderRadius: '12px',
+                                            }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 };
@@ -259,6 +341,9 @@ const FilterSidebar = ({
     handleDatePreset: (preset: string) => void;
     dateRangePreset: string;
 }) => {
+    const statuses: ('all' | 'upcoming' | 'pending' | 'completed')[] = ['all', 'upcoming', 'pending', 'completed'];
+    const datePresets = ['all', 'today', 'last7days', 'last30days'];
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -285,10 +370,10 @@ const FilterSidebar = ({
                         <div className="w-full">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Training Status</label>
                             <div className="flex flex-col gap-2 w-full">
-                                {['all', 'upcoming', 'pending', 'completed'].map((status) => (
+                                {statuses.map((status) => (
                                     <button
                                         key={status}
-                                        onClick={() => setFilterStatus(status as any)}
+                                        onClick={() => setFilterStatus(status)}
                                         className={`w-full py-2 px-4 rounded-lg text-sm font-semibold transition-colors ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                                     >
                                         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -302,7 +387,7 @@ const FilterSidebar = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">Registration Date Range</label>
 
                             <div className="flex flex-wrap gap-2 mb-4">
-                                {['all', 'today', 'last7days', 'last30days'].map((preset) => (
+                                {datePresets.map((preset) => (
                                     <button
                                         key={preset}
                                         onClick={() => handleDatePreset(preset)}
@@ -401,11 +486,11 @@ export default function DashboardPage() {
                 );
             } else {
                 console.error('Failed to update status:', data.error);
-                alert('Failed to update status. Please try again.');
+                console.log('Failed to update status. Please try again.');
             }
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('An error occurred while updating the status.');
+            console.log('An error occurred while updating the status.');
         } finally {
             setLoading(false);
         }
@@ -445,7 +530,7 @@ export default function DashboardPage() {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Export error:', error);
-            alert('An error occurred while exporting the data.');
+            console.log('An error occurred while exporting the data.');
         } finally {
             setLoading(false);
         }
@@ -488,9 +573,9 @@ export default function DashboardPage() {
                 (r) =>
                     r.fullName.toLowerCase().includes(search.toLowerCase()) ||
                     r.email.toLowerCase().includes(search.toLowerCase()) ||
-                    r.currentProfession?.toLowerCase().includes(search.toLowerCase()) ||
+                    (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
                     String(r._id).includes(search) ||
-                    String(r.ticketNo).includes(search)
+                    (r.ticketNo && String(r.ticketNo).includes(search))
             );
         }
 
@@ -513,13 +598,17 @@ export default function DashboardPage() {
 
     const sorted = useMemo(() => {
         return [...filtered].sort((a, b) => {
-            const aValue = a[sortKey as keyof Registration];
-            const bValue = b[sortKey as keyof Registration];
+            const aValue = a[sortKey];
+            const bValue = b[sortKey];
 
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
             }
-            return sortAsc ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortAsc ? aValue - bValue : bValue - aValue;
+            }
+            // Fallback for mixed or undefined types
+            return 0;
         });
     }, [filtered, sortKey, sortAsc]);
 
@@ -530,10 +619,10 @@ export default function DashboardPage() {
 
     const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
-    const toggleSort = (key: keyof Registration) => {
+    const toggleSort = (key: keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>) => {
         if (sortKey === key) setSortAsc(!sortAsc);
         else {
-            setSortKey(key as keyof Omit<Registration, '_id'>);
+            setSortKey(key);
             setSortAsc(true);
         }
     };
@@ -755,7 +844,7 @@ export default function DashboardPage() {
                                                 className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none min-w-[100px]"
                                                 onClick={() => {
                                                     if (col.key !== 'actions' && col.key !== 'selection') {
-                                                        toggleSort(col.key as keyof Registration);
+                                                        toggleSort(col.key as keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>);
                                                     }
                                                 }}
                                             >
@@ -843,7 +932,7 @@ export default function DashboardPage() {
                                                                     {r.isExpired ? 'Expired' : 'Active'}
                                                                 </span>
                                                             ) : (
-                                                                r[col.key as keyof Registration] as string | number
+                                                                (r[col.key as keyof Registration] as string | number)
                                                             )}
                                                         </td>
                                                     ))}

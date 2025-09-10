@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, Layout, ChevronDown, ChevronRight, Settings, Users, FolderOpen } from 'lucide-react'
+import { Home, Layout, ChevronDown, Settings, Users, FolderOpen } from 'lucide-react'
 import Image from 'next/image'
 
 // Import your actual Logo component

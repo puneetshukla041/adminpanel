@@ -3,10 +3,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import * as XLSX from 'xlsx';
 import {
     ChevronUp, ChevronDown, Users, CheckCircle, Activity, Loader2,
-    Download, FileText, FileSpreadsheet, Eye, Filter, User, Mail, Briefcase, SortAsc, SortDesc, ArrowDown, ArrowUp
+    Download, FileText, FileSpreadsheet, Eye, Filter, SortAsc, SortDesc, ArrowUp
 } from 'lucide-react';
 
 // Reusable Modal Component (optimized for mobile)
@@ -128,8 +127,8 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
         isExpired: 'Ticket State',
     };
 
-    const formatValue = (key: keyof Registration, value: any) => {
-        if (key === 'callDateTime' && value) {
+    const formatValue = (key: keyof Registration, value: unknown) => {
+        if (key === 'callDateTime' && typeof value === 'string') {
             const date = new Date(value);
             if (!isNaN(date.getTime())) {
                 return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
@@ -138,7 +137,7 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
         if ((key === 'trainingPrograms' || key === 'additionalPrograms') && Array.isArray(value)) {
             return value.join(', ');
         }
-        if (key === 'uploadId' && value) {
+        if (key === 'uploadId' && typeof value === 'string') {
             const fileUrl = `/api/files?id=${value}`;
             return (
                 <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
@@ -184,7 +183,9 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
 // Reusable Modal for Exporting Data (optimized for mobile)
 const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boolean; onClose: () => void; onExport: (format: 'pdf' | 'excel', registrationId: string | string[] | 'all') => void; exportingId: string | string[] | 'all' | undefined; }) => {
     const handleExport = (format: 'pdf' | 'excel') => {
-        onExport(format, exportingId!);
+        if (exportingId) {
+            onExport(format, exportingId);
+        }
         onClose();
     };
 
@@ -237,6 +238,8 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         });
         return Object.entries(data).map(([name, count]) => ({ name, registrations: count }));
     }, [registrations]);
+    
+    type PieChartData = { name: string; value: number; color: string; };
 
     const statusData = useMemo(() => {
         const upcomingCount = registrations.filter(r => r.status === 'upcoming').length;
@@ -336,6 +339,9 @@ const FilterSidebar = ({
     handleDatePreset: (preset: string) => void;
     dateRangePreset: string;
 }) => {
+    const statuses: ('all' | 'upcoming' | 'pending' | 'completed')[] = ['all', 'upcoming', 'pending', 'completed'];
+    const datePresets = ['all', 'today', 'last7days', 'last30days'];
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -362,10 +368,10 @@ const FilterSidebar = ({
                         <div className="w-full">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Training Status</label>
                             <div className="flex flex-col gap-2 w-full">
-                                {['all', 'upcoming', 'pending', 'completed'].map((status) => (
+                                {statuses.map((status) => (
                                     <button
                                         key={status}
-                                        onClick={() => setFilterStatus(status as any)}
+                                        onClick={() => setFilterStatus(status)}
                                         className={`w-full py-2 px-4 rounded-lg text-sm font-semibold transition-colors ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                                     >
                                         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -379,7 +385,7 @@ const FilterSidebar = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">Registration Date Range</label>
 
                             <div className="flex flex-wrap gap-2 mb-4">
-                                {['all', 'today', 'last7days', 'last30days'].map((preset) => (
+                                {datePresets.map((preset) => (
                                     <button
                                         key={preset}
                                         onClick={() => handleDatePreset(preset)}
@@ -422,7 +428,7 @@ export default function MobileDashboardPage() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [sortKey, setSortKey] = useState<keyof Omit<Registration, '_id'>>('fullName');
+    const [sortKey, setSortKey] = useState<keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms'>>('fullName');
     const [sortAsc, setSortAsc] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -476,7 +482,6 @@ export default function MobileDashboardPage() {
                 );
             } else {
                 console.error('Failed to update status:', data.error);
-                // Replaced alert() with console log for immersive environment
                 console.log('Failed to update status. Please try again.');
             }
         } catch (error) {
@@ -564,9 +569,9 @@ export default function MobileDashboardPage() {
                 (r) =>
                     r.fullName.toLowerCase().includes(search.toLowerCase()) ||
                     r.email.toLowerCase().includes(search.toLowerCase()) ||
-                    r.currentProfession?.toLowerCase().includes(search.toLowerCase()) ||
+                    (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
                     String(r._id).includes(search) ||
-                    String(r.ticketNo).includes(search)
+                    (r.ticketNo && String(r.ticketNo).includes(search))
             );
         }
 
@@ -589,13 +594,17 @@ export default function MobileDashboardPage() {
 
     const sorted = useMemo(() => {
         return [...filtered].sort((a, b) => {
-            const aValue = a[sortKey as keyof Registration];
-            const bValue = b[sortKey as keyof Registration];
+            const aValue = a[sortKey];
+            const bValue = b[sortKey];
 
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
             }
-            return sortAsc ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortAsc ? aValue - bValue : bValue - aValue;
+            }
+            // Fallback for mixed or undefined types
+            return 0;
         });
     }, [filtered, sortKey, sortAsc]);
 
@@ -606,10 +615,10 @@ export default function MobileDashboardPage() {
 
     const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
-    const toggleSort = (key: keyof Registration) => {
+    const toggleSort = (key: keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms'>) => {
         if (sortKey === key) setSortAsc(!sortAsc);
         else {
-            setSortKey(key as keyof Omit<Registration, '_id'>);
+            setSortKey(key);
             setSortAsc(true);
         }
     };
@@ -661,10 +670,6 @@ export default function MobileDashboardPage() {
             default:
                 return 'bg-gray-100 text-gray-800';
         }
-    };
-
-    const getTicketStateColor = (isExpired: boolean) => {
-        return isExpired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
     };
 
     if (loading) {
@@ -826,7 +831,7 @@ export default function MobileDashboardPage() {
                                                 className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none"
                                                 onClick={() => {
                                                     if (col.key !== 'actions' && col.key !== 'selection') {
-                                                        toggleSort(col.key as keyof Registration);
+                                                        toggleSort(col.key as keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms'>);
                                                     }
                                                 }}
                                             >

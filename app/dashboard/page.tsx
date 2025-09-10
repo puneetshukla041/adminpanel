@@ -8,7 +8,7 @@ const DashboardPage = dynamic(() => import("@/components/DashboardPage"), { ssr:
 const MobileDashboard = dynamic(() => import("@/components/mobiledashboard"), { ssr: false });
 
 export default function DashboardWrapper() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     // Function to detect screen width
