@@ -1,9 +1,8 @@
-// app/login/page.tsx
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import AuthBg from "@/components/Authbg";
-import { isAuthenticated } from "@/lib/auth"; // Import isAuthenticated
+import { isAuthenticated } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,22 +11,30 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Check if already authenticated and redirect
+  // Check auth status and screen size on mount
   useEffect(() => {
+    // Check if the user is already authenticated
     const checkAuthStatus = async () => {
       const authed = await isAuthenticated();
       if (authed) {
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
     };
     checkAuthStatus();
+
+    // Check for mobile screen size on initial load and resize
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768); // Tailwind's 'md' breakpoint is a good reference
+    };
+    handleResize(); // Set initial state
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [router]);
 
-  const capitalize = (s: string) => {
-    if (typeof s !== 'string') return ''
-    return s.charAt(0).toUpperCase() + s.slice(1)
-  }
+  const capitalize = (s: string) =>
+    typeof s === "string" ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,13 +63,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white md:bg-transparent relative">
-      <div className="hidden md:block absolute inset-0">
-        <AuthBg />
-      </div>
+    <div className="w-screen h-screen flex items-center justify-center relative overflow-hidden m-0 p-0">
+      {/* Background Video (only on non-mobile devices for performance) */}
+      {!isMobile && (
+        <video
+          src="/videos/AuthBg.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
 
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Loader Overlay */}
       {isLoading && !showWelcome && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center">
           <div className="text-center animate-scale-in">
             <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-white text-sm tracking-wide">
@@ -72,21 +91,26 @@ export default function LoginPage() {
         </div>
       )}
 
+      {/* Welcome Overlay */}
       {showWelcome && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center">
           <div
             className="text-white text-4xl font-extrabold tracking-wide animate-scale-in"
-            style={{ fontFamily: 'Inter, sans-serif', letterSpacing: '0.5px' }}
+            style={{ fontFamily: "Inter, sans-serif", letterSpacing: "0.5px" }}
           >
-            Welcome, <span className="text-blue-300">{capitalize(username)}</span>
+            Welcome,{" "}
+            <span className="text-blue-300">{capitalize(username)}</span>
           </div>
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-sm rounded-xl shadow-lg p-8
-                    bg-white md:bg-gray-800/20 md:backdrop-blur-md
-                    border border-gray-200 md:border-gray-700/50
-                    md:text-gray-100">
+      {/* Login Box */}
+      <div
+        className="relative z-10 w-full max-w-sm rounded-xl shadow-lg p-8
+                           bg-white/90 md:bg-gray-800/40 md:backdrop-blur-md
+                           border border-gray-200 md:border-gray-700/50
+                           md:text-gray-100"
+      >
         <h1 className="text-2xl font-semibold text-gray-900 md:text-gray-100 mb-2 text-center">
           SSI CRS Admin
         </h1>
@@ -109,9 +133,9 @@ export default function LoginPage() {
               type="text"
               autoComplete="username"
               className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2
-                          text-gray-900 md:text-white
-                          focus:outline-none focus:ring-2 focus:ring-black md:focus:ring-blue-300
-                          bg-white md:bg-gray-900/30 md:border-gray-700/50"
+                                 text-gray-900 md:text-white
+                                 focus:outline-none focus:ring-2 focus:ring-black md:focus:ring-blue-300
+                                 bg-white md:bg-gray-900/30 md:border-gray-700/50"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
@@ -127,9 +151,9 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2
-                          text-gray-900 md:text-white
-                          focus:outline-none focus:ring-2 focus:ring-black md:focus:ring-blue-300
-                          bg-white md:bg-gray-900/30 md:border-gray-700/50"
+                                 text-gray-900 md:text-white
+                                 focus:outline-none focus:ring-2 focus:ring-black md:focus:ring-blue-300
+                                 bg-white md:bg-gray-900/30 md:border-gray-700/50"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
@@ -140,8 +164,8 @@ export default function LoginPage() {
           <button
             type="submit"
             className="w-full bg-black text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        md:bg-gray-800/40 md:border md:border-gray-700/50 md:hover:bg-gray-700/50 md:shadow-inner"
+                                 disabled:opacity-50 disabled:cursor-not-allowed
+                                 md:bg-gray-800/40 md:border md:border-gray-700/50 md:hover:bg-gray-700/50 md:shadow-inner"
             disabled={isLoading || showWelcome}
           >
             Login
