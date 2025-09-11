@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { useRouter, usePathname } from 'next/navigation'
-import { Home, Layout, ChevronDown, Settings, Users, FolderOpen } from 'lucide-react'
-import Image from 'next/image'
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useRouter, usePathname } from 'next/navigation';
+import { Home, Layout, ChevronDown, Settings, Users, FolderOpen } from 'lucide-react';
+import Image from 'next/image';
 
 // Import your actual Logo component
-import Logo from '@/components/Logo'
+import Logo from '@/components/Logo';
 
 // --- Menu Data (Updated) ---
 type MenuItem = {
-  name: string
-  icon: React.ElementType
-  path?: string
-  children?: { name: string; path: string }[]
-  onClick?: () => void
-}
+  name: string;
+  icon: React.ElementType;
+  path?: string;
+  children?: { name: string; path: string }[];
+  onClick?: () => void;
+};
 
 const menu: MenuItem[] = [
   { name: 'Dashboard', icon: Home, path: '/' },
@@ -31,19 +31,19 @@ const menu: MenuItem[] = [
   },
   { name: 'Users', icon: Users, path: '/users' },
   { name: 'Settings', icon: Settings, path: '/settings' },
-]
+];
 
 // --- Sidebar Component ---
 type SidebarProps = {
-  isOpen: boolean
-  toggleSidebar: () => void
-}
+  isOpen: boolean;
+  toggleSidebar: () => void;
+};
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [expanded, setExpanded] = useState<string[]>([])
-  const [isHovered, setIsHovered] = useState(false)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Expand parent menus based on URL
   useEffect(() => {
@@ -52,23 +52,30 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         (item) =>
           item.children && item.children.some((child) => pathname.startsWith(child.path))
       )
-      .map((item) => item.name)
-    setExpanded(expandedParents)
-  }, [pathname])
+      .map((item) => item.name);
+    setExpanded(expandedParents);
+  }, [pathname]);
 
   const toggle = (name: string) => {
     setExpanded((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-    )
-  }
+    );
+  };
 
   const isParentActive = (item: MenuItem) => {
-    if (item.path && pathname.startsWith(item.path)) return true
-    if (item.children) return item.children.some((c) => pathname.startsWith(c.path))
-    return false
-  }
+    if (item.path && pathname.startsWith(item.path)) return true;
+    if (item.children) return item.children.some((c) => pathname.startsWith(c.path));
+    return false;
+  };
 
-  const isChildActive = (path: string) => pathname.startsWith(path)
+  const isChildActive = (path: string) => pathname.startsWith(path);
+
+  // Placeholder logout function
+  const handleLogout = useCallback(() => {
+    // In a real application, you would handle token removal and API calls here.
+    console.log("Logging out...");
+    router.push('/login');
+  }, [router]);
 
   const renderSidebarContent = (isMobile: boolean, isDesktopHovered = false) => (
     <aside
@@ -111,18 +118,18 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         <nav className="flex-1 px-4 py-4 space-y-1.5">
           <LayoutGroup>
             {menu.map((item) => {
-              const Icon = item.icon
-              const isOpenMenuItem = expanded.includes(item.name)
-              const active = isParentActive(item)
+              const Icon = item.icon;
+              const isOpenMenuItem = expanded.includes(item.name);
+              const active = isParentActive(item);
 
               return (
                 <div key={item.name}>
                   <motion.button
                     onClick={() => {
-                      if (item.children) toggle(item.name)
+                      if (item.children) toggle(item.name);
                       else if (item.path && item.path !== pathname) {
-                        router.push(item.path)
-                        if (isMobile) toggleSidebar()
+                        router.push(item.path);
+                        if (isMobile) toggleSidebar();
                       }
                     }}
                     className={`group flex items-center justify-between w-full px-3 py-2.5 rounded-lg transition-all duration-200 relative
@@ -192,14 +199,14 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                           className="ml-5 border-l border-gray-700 pl-4 overflow-hidden"
                         >
                           {item.children.map((child) => {
-                            const childIsActive = isChildActive(child.path)
+                            const childIsActive = isChildActive(child.path);
                             return (
                               <button
                                 key={child.path}
                                 onClick={() => {
                                   if (child.path !== pathname) {
-                                    router.push(child.path)
-                                    if (isMobile) toggleSidebar()
+                                    router.push(child.path);
+                                    if (isMobile) toggleSidebar();
                                   }
                                 }}
                                 className={`block w-full text-left px-3 py-2 text-sm rounded-md transition-colors duration-200 mt-1
@@ -211,20 +218,89 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                               >
                                 {child.name}
                               </button>
-                            )
+                            );
                           })}
                         </motion.div>
                       )}
                     </AnimatePresence>
                   )}
                 </div>
-              )
+              );
             })}
           </LayoutGroup>
         </nav>
+
+        {/* --- Sidebar Footer (New) --- */}
+        <div className={`mt-auto p-4 flex-shrink-0 ${!isMobile && !isDesktopHovered ? 'hidden' : 'flex'} flex-col items-center justify-center`}>
+          {/* Download Android App Button */}
+          <a
+            href="https://drive.google.com/file/d/1AgSWuLtwlhmCxMTsDuHLxvmA8MuKDbTL/view?usp=sharing" // Replace with your actual link
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full mb-3 flex items-center justify-center gap-2 rounded-lg 
+                      bg-gradient-to-r from-green-600 via-green-700 to-green-800 
+                      hover:from-green-500 hover:via-green-600 hover:to-green-700
+                      text-white font-medium text-sm py-2.5 
+                      shadow-md shadow-black/30 backdrop-blur-md
+                      transition-all cursor-pointer active:scale-[0.97]"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8.009 8.009 0 0 1-8 8Zm-1-13h2v6h-2Zm0 8h2v2h-2Z"/>
+            </svg>
+            Download Android App
+          </a>
+
+          {/* Download Desktop App Button */}
+          <a
+            href="https://drive.google.com/uc?export=download&id=1wsR2aYD_iW_dFCKuP-f2IwOusziUHQiK"
+            download
+            className="w-full mb-3 flex items-center justify-center gap-2 rounded-lg 
+                      bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 
+                      hover:from-gray-600 hover:via-gray-700 hover:to-gray-800
+                      text-gray-200 font-medium text-sm py-2.5 
+                      shadow-md shadow-black/30 backdrop-blur-md
+                      transition-all cursor-pointer active:scale-[0.97]"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+              />
+            </svg>
+            Download Desktop App
+          </a>
+
+          <div className="text-gray-500 text-xs text-center select-none">
+            SSI CRS ADMINS v.1.08.25
+          </div>
+          <div className="text-green-500 text-xs text-center select-none">
+            Beta Version
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 text-sm text-red-500 hover:text-red-400 transition-colors w-full py-2 rounded-lg hover:bg-red-500/10 cursor-pointer mt-3"
+            type="button"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </aside>
-  )
+  );
 
   return (
     <>
@@ -284,5 +360,5 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         }
       `}</style>
     </>
-  )
+  );
 }
