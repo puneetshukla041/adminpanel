@@ -48,7 +48,8 @@ export default function AuthBackground() {
     mq.addEventListener?.('change', setRm)
 
     const w = window.innerWidth
-    const h = window.innerHeight
+    // The variable 'h' is unused, so we can safely remove it to solve the warning.
+    // const h = window.innerHeight
     const isMobile = w < 640 // ~tailwind sm
     
     // Increased star count significantly for a dense Milky Way effect
@@ -136,6 +137,7 @@ export default function AuthBackground() {
     }
 
     // Device tilt (mobile)
+    // Removed 'any' from `onDeviceTilt as any` by casting to DeviceOrientationEvent.
     const onDeviceTilt = (e: DeviceOrientationEvent) => {
       // gamma: left-right, beta: front-back; normalize a bit
       const nx = Math.max(-1, Math.min(1, (e.gamma ?? 0) / 45))
@@ -174,7 +176,8 @@ export default function AuthBackground() {
     if ('DeviceOrientationEvent' in window) {
       // Some browsers require secure context & permission; try/catch silently
       try {
-        window.addEventListener('deviceorientation', onDeviceTilt as any)
+        // Removed `as any` by ensuring the event listener is correctly typed
+        window.addEventListener('deviceorientation', onDeviceTilt)
       } catch {}
     }
 
@@ -188,7 +191,8 @@ export default function AuthBackground() {
       window.removeEventListener('touchstart', onAnyInput)
       window.removeEventListener('mousemove', onAnyInput)
       try {
-        window.removeEventListener('deviceorientation', onDeviceTilt as any)
+        // Removed `as any` by ensuring the event listener is correctly typed
+        window.removeEventListener('deviceorientation', onDeviceTilt)
       } catch {}
     }
   }, [motionReduced])
@@ -198,15 +202,17 @@ export default function AuthBackground() {
       ref={rootRef}
       className="fixed inset-0 -z-50 w-screen h-screen overflow-hidden bg-slate-950"
       // CSS vars default values
+      // Replaced `as any` with `React.CSSProperties` to correctly type the style object.
+      // We can also use a generic index signature `[key: string]: string | number` to handle custom CSS variables.
       style={
         {
           // motion tuning
           // parallax multiplier for layers
           // tweak freely if you want more/less motion
-          ['--mx' as any]: 0,
-          ['--my' as any]: 0,
-          ['--parallax-base' as any]: 24, // Slightly less base parallax for more gentle movement
-          ['--scale' as any]: 1.25, // Slightly more zoomed in to fill the screen
+          '--mx': 0,
+          '--my': 0,
+          '--parallax-base': 24, // Slightly less base parallax for more gentle movement
+          '--scale': 1.25, // Slightly more zoomed in to fill the screen
         } as React.CSSProperties
       }
     >

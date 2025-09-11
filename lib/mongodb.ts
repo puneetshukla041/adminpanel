@@ -13,11 +13,10 @@ interface MongooseCache {
 
 // Use globalThis for caching across hot reloads in development
 declare global {
-  // eslint-disable-next-line no-var
-  var mongooseCache: MongooseCache | undefined;
+  var mongooseCache: MongooseCache | undefined; // keep var (TypeScript requires it here)
 }
 
-let cached: MongooseCache = globalThis.mongooseCache || { conn: null, promise: null };
+const cached: MongooseCache = globalThis.mongooseCache || { conn: null, promise: null };
 
 if (!globalThis.mongooseCache) {
   globalThis.mongooseCache = cached;
@@ -27,7 +26,6 @@ export async function connectDB(): Promise<mongoose.Mongoose> {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    // Assert MONGODB_URI is a string using !
     cached.promise = mongoose.connect(MONGODB_URI!).then((mongooseInstance) => mongooseInstance);
   }
 

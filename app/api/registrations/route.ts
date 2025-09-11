@@ -13,12 +13,13 @@ const connectDB = async () => {
 };
 
 // GET all registrations
+// GET all registrations
 export async function GET() {
   await connectDB();
   try {
     const registrations = await RegistrationModel.find({});
     return NextResponse.json({ success: true, data: registrations });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to fetch data' }, { status: 500 });
   }
 }
@@ -45,7 +46,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Registration not found' }, { status: 404 });
     }
     return NextResponse.json({ success: true, data: updatedReg });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to update status' }, { status: 500 });
   }
 }

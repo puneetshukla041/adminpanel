@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import type { PieLabelRenderProps } from "recharts";
+
 import {
     ChevronUp, ChevronDown, Users, CheckCircle, Activity, Loader2,
     Download, FileText, FileSpreadsheet, Eye, Filter, SortAsc, SortDesc, ArrowUp
@@ -239,18 +241,20 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         return Object.entries(data).map(([name, count]) => ({ name, registrations: count }));
     }, [registrations]);
     
-    type PieChartData = { name: string; value: number; color: string; };
+    // Type for the Pie Chart data
+    interface PieChartEntry { name: string; value: number; color: string; percent: number; }
 
-    const statusData = useMemo(() => {
-        const upcomingCount = registrations.filter(r => r.status === 'upcoming').length;
-        const pendingCount = registrations.filter(r => r.status === 'pending').length;
-        const completedCount = registrations.filter(r => r.status === 'completed').length;
-        return [
-            { name: 'Upcoming', value: upcomingCount, color: '#3b82f6' },
-            { name: 'Pending', value: pendingCount, color: '#f59e0b' },
-            { name: 'Completed', value: completedCount, color: '#22c55e' },
-        ].filter(d => d.value > 0);
-    }, [registrations]);
+const statusData: PieChartEntry[] = useMemo(() => {
+    const upcomingCount = registrations.filter(r => r.status === 'upcoming').length;
+    const pendingCount = registrations.filter(r => r.status === 'pending').length;
+    const completedCount = registrations.filter(r => r.status === 'completed').length;
+    return [
+        { name: 'Upcoming', value: upcomingCount, color: '#3b82f6', percent: 0 },
+        { name: 'Pending', value: pendingCount, color: '#f59e0b', percent: 0 },
+        { name: 'Completed', value: completedCount, color: '#22c55e', percent: 0 },
+    ].filter(d => d.value > 0);
+}, [registrations]);
+
 
     return (
         <section className="mb-8 p-4 md:p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
@@ -291,20 +295,24 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
                                 <h3 className="text-md font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <PieChart>
-                                        <Pie
-                                            data={statusData}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}
-                                        >
-                                            {statusData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
+<Pie
+  data={statusData}
+  dataKey="value"
+  nameKey="name"
+  cx="50%"
+  cy="50%"
+  outerRadius={80}
+  fill="#8884d8"
+  label={(props) =>
+    `${(props as PieLabelRenderProps).name ?? ""} ${(((props as PieLabelRenderProps).percent ?? 0) * 100).toFixed(0)}%`
+  }
+>
+  {statusData.map((entry, index) => (
+    <Cell key={`cell-${index}`} fill={entry.color} />
+  ))}
+</Pie>
+
+
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: '#fff',

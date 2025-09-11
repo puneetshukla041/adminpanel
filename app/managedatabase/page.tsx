@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent } from "react";
+import { useEffect, useState, ChangeEvent, useCallback } from "react";
 import {
   FaEdit,
   FaTrash,
@@ -240,12 +240,13 @@ export default function ManageDatabasePage() {
   const [exportingId, setExportingId] = useState<string | "all" | undefined>(undefined);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const showToast = (message: string, type: "success" | "error" | "info") => {
+  // Wrap showToast in useCallback
+  const showToast = useCallback((message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, [setToast]); // setToast is guaranteed to be stable by React
 
-  const fetchRegistrations = async () => {
+  const fetchRegistrations = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/registrations`);
@@ -259,7 +260,7 @@ export default function ManageDatabasePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   const handleDelete = async () => {
     if (idToDelete === null) return;
@@ -288,36 +289,36 @@ export default function ManageDatabasePage() {
     setShowConfirmModal(true);
   };
 
-const handleEditSubmit = async () => {
-  if (!editing) return;
+  const handleEditSubmit = async () => {
+    if (!editing) return;
 
-  try {
-    const payload = {
-      ...editing,
-      ticketNo: Number(editing.ticketNo || 0),
-      // Add other numeric fields here if any
-    };
+    try {
+      const payload = {
+        ...editing,
+        ticketNo: Number(editing.ticketNo || 0),
+        // Add other numeric fields here if any
+      };
 
-    const res = await fetch(`/api/registrations/${editing._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch(`/api/registrations/${editing._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    if (data.success) {
-      setEditing(null);
-      setSelectedFile(null);
-      showToast("Registration successfully updated.", "success");
-      fetchRegistrations();
-    } else {
-      showToast(`Update failed: ${data.error}`, "error");
+      const data = await res.json();
+      if (data.success) {
+        setEditing(null);
+        setSelectedFile(null);
+        showToast("Registration successfully updated.", "success");
+        fetchRegistrations();
+      } else {
+        showToast(`Update failed: ${data.error}`, "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Update failed. An unexpected error occurred.", "error");
     }
-  } catch (err) {
-    console.error(err);
-    showToast("Update failed. An unexpected error occurred.", "error");
-  }
-};
+  };
 
 
   const updateStatus = async (_id: string, newStatus: Registration['status']) => {
@@ -360,14 +361,14 @@ const handleEditSubmit = async () => {
     }
   };
 
-  const handleExport = (format: "pdf" | "excel", _id?: string | "all") => {
+  const handleExport = useCallback((format: "pdf" | "excel", _id?: string | "all") => {
     console.log(`Export request: ID=${_id}, Format=${format}`);
     alert(`Exporting ${_id === "all" ? "all data" : `registration with ID ${_id}`} as ${format}. This is a placeholder action, no file will be downloaded.`);
-  };
+  }, []); // No dependencies for this simple function
 
   useEffect(() => {
     fetchRegistrations();
-  }, []);
+  }, [fetchRegistrations]);
 
   const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return "";
@@ -781,8 +782,8 @@ const handleEditSubmit = async () => {
                       <option value="completed">Completed</option>
                     </select>
                   </div>
-                   {/* Training Programs */}
-                   <div className="col-span-1">
+                  {/* Training Programs */}
+                  <div className="col-span-1">
                     <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Training Programs</label>
                     <div className="space-y-2 mt-2">
                       {allPrograms.map(p => (
@@ -833,7 +834,7 @@ const handleEditSubmit = async () => {
                   <div className="col-span-1">
                     <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Upload ID</label>
                     <div className="flex flex-col gap-2">
-                       {editing.uploadId && !selectedFile ? (
+                        {editing.uploadId && !selectedFile ? (
                         <div className="flex items-center gap-2">
                           <a 
                             href={`/api/uploads/${editing.uploadId}`} 
