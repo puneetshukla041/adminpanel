@@ -29,7 +29,7 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-end p-4">
-                            <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors">
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors cursor-pointer">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
                                     <path d="M18 6L6 18M6 6l12 12" />
                                 </svg>
@@ -140,7 +140,7 @@ const ViewModal = ({ isOpen, onClose, registration }: { isOpen: boolean; onClose
         if (key === 'uploadId' && typeof value === 'string') {
             const fileUrl = `/api/files?id=${value}`;
             return (
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium cursor-pointer">
                     View File
                 </a>
             );
@@ -311,7 +311,7 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="w-full flex justify-between items-center text-left py-2"
+                className="w-full flex justify-between items-center text-left py-2 cursor-pointer"
             >
                 <h2 className="text-2xl font-bold text-gray-900">
                     Training Status Analytics
@@ -438,6 +438,7 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
 export default function App() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isUpdating, setIsUpdating] = useState(false); // New state for specific updates
     const [search, setSearch] = useState('');
 
     type SortableKey = keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>;
@@ -474,7 +475,7 @@ export default function App() {
     }, [fetchRegistrations]);
 
     const updateStatus = async (_id: string, newStatus: Registration['status']) => {
-        setLoading(true);
+        setIsUpdating(true); // Start the specific update loading state
         try {
             const res = await fetch(`/api/registrations/${_id}`, {
                 method: 'PUT',
@@ -501,13 +502,13 @@ export default function App() {
             console.error('Error updating status:', error);
             console.log('An error occurred while updating the status.');
         } finally {
-            setLoading(false);
+            setIsUpdating(false); // End the specific update loading state
         }
     };
 
     const handleBulkUpdate = async (newStatus: Registration['status']) => {
         if (selectedRows.size === 0) return;
-        setLoading(true);
+        setIsUpdating(true); // Start the specific update loading state
         try {
             for (const _id of selectedRows) {
                 await updateStatus(_id, newStatus);
@@ -516,7 +517,7 @@ export default function App() {
         } catch (error) {
             console.error('Error with bulk update:', error);
         } finally {
-            setLoading(false);
+            setIsUpdating(false); // End the specific update loading state
         }
     };
 
@@ -697,21 +698,6 @@ export default function App() {
         return isExpired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                    className="text-gray-600"
-                >
-                    <IconSpinner className="h-12 w-12" />
-                </motion.div>
-                <p className="ml-4 text-xl font-semibold text-gray-700">Loading dashboard data...</p>
-            </div>
-        );
-    }
-
     return (
         <div className="flex min-h-screen text-gray-900 font-sans bg-gray-50">
             <div className="flex-1 p-4 md:p-8 transition-all duration-300">
@@ -730,7 +716,7 @@ export default function App() {
                                     setExportingId('all');
                                     setExportModalOpen(true);
                                 }}
-                                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all duration-200 shadow-lg"
+                                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all duration-200 shadow-lg cursor-pointer"
                             >
                                 <IconDownload className="mr-2 h-5 w-5" />
                                 Export All Data
@@ -776,7 +762,18 @@ export default function App() {
                     <DataVisualizations registrations={registrations} />
 
                     {/* Registration Data Table Section */}
-                    <section className="bg-white p-6 rounded-2xl shadow-xl ring-1 ring-gray-200">
+                    <section className="bg-white p-6 rounded-2xl shadow-xl ring-1 ring-gray-200 relative">
+                        {isUpdating && (
+                            <div className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                                    className="text-blue-600"
+                                >
+                                    <Loader2 className="h-10 w-10" />
+                                </motion.div>
+                            </div>
+                        )}
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">Training Registration Database</h2>
                         </div>
@@ -806,7 +803,7 @@ export default function App() {
                                     <button
                                         key={status}
                                         onClick={() => setFilterStatus(status)}
-                                        className={`py-2 px-4 rounded-full text-xs font-semibold transition-colors ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                                        className={`py-2 px-4 rounded-full text-xs font-semibold transition-colors cursor-pointer ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                                     >
                                         {status.charAt(0).toUpperCase() + status.slice(1)}
                                     </button>
@@ -818,7 +815,7 @@ export default function App() {
                                     <button
                                         key={preset}
                                         onClick={() => handleDatePreset(preset)}
-                                        className={`py-2 px-4 rounded-full text-xs font-medium transition-colors ${dateRangePreset === preset ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                                        className={`py-2 px-4 rounded-full text-xs font-medium transition-colors cursor-pointer ${dateRangePreset === preset ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                                     >
                                         {preset === 'all' ? 'All Time' : preset === 'today' ? 'Today' : preset === 'last7days' ? 'Last 7 Days' : 'Last 30 Days'}
                                     </button>
@@ -841,7 +838,7 @@ export default function App() {
                                     <div className="flex flex-wrap items-center gap-2">
                                         <button
                                             onClick={() => handleBulkUpdate('completed')}
-                                            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all duration-200 shadow-sm"
+                                            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all duration-200 shadow-sm cursor-pointer"
                                         >
                                             Mark as Completed
                                         </button>
@@ -850,13 +847,13 @@ export default function App() {
                                                 setExportingId(Array.from(selectedRows));
                                                 setExportModalOpen(true);
                                             }}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-100 transition-all duration-200"
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-100 transition-all duration-200 cursor-pointer"
                                         >
                                             Bulk Export
                                         </button>
                                         <button
                                             onClick={() => setSelectedRows(new Set())}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-100 transition-all duration-200"
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-100 transition-all duration-200 cursor-pointer"
                                         >
                                             Cancel
                                         </button>
@@ -884,7 +881,7 @@ export default function App() {
                                                     {col.key === 'selection' ? (
                                                         <input
                                                             type="checkbox"
-                                                            className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
+                                                            className="form-checkbox h-4 w-4 text-blue-600 rounded-sm cursor-pointer"
                                                             onChange={(e) => handleSelectAll(e.target.checked)}
                                                             checked={selectedRows.size > 0 && paginated.every(r => selectedRows.has(r._id))}
                                                         />
@@ -927,7 +924,7 @@ export default function App() {
                                                             {col.key === 'selection' ? (
                                                                 <input
                                                                     type="checkbox"
-                                                                    className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
+                                                                    className="form-checkbox h-4 w-4 text-blue-600 rounded-sm cursor-pointer"
                                                                     checked={selectedRows.has(r._id)}
                                                                     onChange={() => handleCheckboxChange(r._id)}
                                                                 />
@@ -953,7 +950,7 @@ export default function App() {
                                                                 <select
                                                                     value={r.status}
                                                                     onChange={(e) => updateStatus(r._id, e.target.value as Registration['status'])}
-                                                                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                                                                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusColor(r.status)} focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer`}
                                                                 >
                                                                     <option value="upcoming" className="bg-white text-gray-900">Upcoming</option>
                                                                     <option value="pending" className="bg-white text-gray-900">Pending</option>
@@ -992,7 +989,7 @@ export default function App() {
                                         setItemsPerPage(Number(e.target.value));
                                         setCurrentPage(1);
                                     }}
-                                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm cursor-pointer"
                                 >
                                     <option value={10}>10</option>
                                     <option value={25}>25</option>
@@ -1006,7 +1003,7 @@ export default function App() {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <button
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                         onClick={() => setCurrentPage((p) => p - 1)}
                                         disabled={currentPage === 1}
                                     >
@@ -1016,7 +1013,7 @@ export default function App() {
                                         Page {currentPage} of {totalPages}
                                     </span>
                                     <button
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                         onClick={() => setCurrentPage((p) => p + 1)}
                                         disabled={currentPage >= totalPages}
                                     >
