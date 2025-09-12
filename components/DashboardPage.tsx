@@ -435,113 +435,15 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
 };
 
 
-// Filter Sidebar Component (Full-width content)
-const FilterSidebar = ({
-    isOpen, onClose, filterStatus, setFilterStatus, startDate, setStartDate, endDate, setEndDate, handleDatePreset, dateRangePreset
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    filterStatus: 'all' | 'upcoming' | 'pending' | 'completed';
-    setFilterStatus: (status: 'all' | 'upcoming' | 'pending' | 'completed') => void;
-    startDate: string;
-    setStartDate: (date: string) => void;
-    endDate: string;
-    setEndDate: (date: string) => void;
-    handleDatePreset: (preset: string) => void;
-    dateRangePreset: string;
-}) => {
-    const statuses: ('all' | 'upcoming' | 'pending' | 'completed')[] = ['all', 'upcoming', 'pending', 'completed'];
-    const datePresets = ['all', 'today', 'last7days', 'last30days'];
-
-    return (
-        <AnimatePresence>
-            {isOpen && (
-                <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: "tween", duration: 0.3 }}
-                    className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-lg p-6 overflow-y-auto flex flex-col"
-                >
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                            <IconFilter className="mr-2 h-6 w-6" /> Advanced Filters
-                        </h2>
-                        <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-                                <path d="M18 6L6 18M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div className="space-y-6 flex-1 flex flex-col">
-                        {/* Status Filter */}
-                        <div className="w-full">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Training Status</label>
-                            <div className="flex flex-col gap-2 w-full">
-                                {statuses.map((status) => (
-                                    <button
-                                        key={status}
-                                        onClick={() => setFilterStatus(status)}
-                                        className={`w-full py-2 px-4 rounded-lg text-sm font-semibold transition-colors ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-                                    >
-                                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Date Filter */}
-                        <div className="w-full flex-1 flex flex-col">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Registration Date Range</label>
-
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {datePresets.map((preset) => (
-                                    <button
-                                        key={preset}
-                                        onClick={() => handleDatePreset(preset)}
-                                        className={`flex-1 py-2 rounded-full text-xs font-medium transition-colors ${dateRangePreset === preset ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
-                                    >
-                                        {preset === 'all' ? 'All Time' : preset === 'today' ? 'Today' : preset === 'last7days' ? 'Last 7 Days' : 'Last 30 Days'}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="w-full">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                                    />
-                                </div>
-                                <div className="w-full">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
-};
-
-
 export default function App() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
- 
+    type SortableKey = keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>;
+    const [sortKey, setSortKey] = useState<SortableKey>('fullName');
+    const [sortAsc, setSortAsc] = useState(true);
+
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [viewing, setViewing] = useState<Registration | null>(null);
@@ -552,8 +454,7 @@ export default function App() {
     const [endDate, setEndDate] = useState<string>('');
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [dateRangePreset, setDateRangePreset] = useState<string>('all');
-    const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
-
+    
     const fetchRegistrations = useCallback(async () => {
         setLoading(true);
         try {
@@ -643,111 +544,46 @@ export default function App() {
             setLoading(false);
         }
     };
-// Define which keys are sortable
-type SortableKey = keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>;
 
-// Sorting state
-const [sortKey, setSortKey] = useState<SortableKey>('fullName');
-const [sortAsc, setSortAsc] = useState(true);
+    const handleDatePreset = (preset: string) => {
+        const today = new Date();
+        let start = '';
+        let end = today.toISOString().split('T')[0];
 
-// Toggle sorting direction
-const toggleSort = (key: SortableKey) => {
-    if (sortKey === key) setSortAsc(!sortAsc);
-    else {
-        setSortKey(key);
-        setSortAsc(true);
-    }
-};
-
-// Handle date range presets
-const handleDatePreset = (preset: string) => {
-    const today = new Date();
-    let start = '';
-    let end = today.toISOString().split('T')[0];
-
-    switch (preset) {
-        case 'today':
-            start = end;
-            break;
-        case 'last7days': {
-            const sevenDaysAgo = new Date(today);
-            sevenDaysAgo.setDate(today.getDate() - 7);
-            start = sevenDaysAgo.toISOString().split('T')[0];
-            break;
+        switch (preset) {
+            case 'today':
+                start = end;
+                break;
+            case 'last7days': {
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 7);
+                start = sevenDaysAgo.toISOString().split('T')[0];
+                break;
+            }
+            case 'last30days': {
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                start = thirtyDaysAgo.toISOString().split('T')[0];
+                break;
+            }
+            default:
+                start = '';
+                end = '';
+                break;
         }
-        case 'last30days': {
-            const thirtyDaysAgo = new Date(today);
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            start = thirtyDaysAgo.toISOString().split('T')[0];
-            break;
+
+        setStartDate(start);
+        setEndDate(end);
+        setDateRangePreset(preset);
+    };
+
+    const toggleSort = (key: SortableKey) => {
+        if (sortKey === key) setSortAsc(!sortAsc);
+        else {
+            setSortKey(key);
+            setSortAsc(true);
         }
-        default:
-            start = '';
-            end = '';
-            break;
-    }
-
-    setStartDate(start);
-    setEndDate(end);
-    setDateRangePreset(preset);
-};
-
-// Filter registrations based on search, status, and date range
-const filtered = useMemo(() => {
-    let result = registrations;
-
-    if (search) {
-        result = result.filter(
-            (r) =>
-                r.fullName.toLowerCase().includes(search.toLowerCase()) ||
-                r.email.toLowerCase().includes(search.toLowerCase()) ||
-                (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
-                String(r._id).includes(search) ||
-                (r.ticketNo && String(r.ticketNo).includes(search))
-        );
-    }
-
-    if (filterStatus !== 'all') {
-        result = result.filter(r => r.status === filterStatus);
-    }
-
-    if (startDate && endDate) {
-        const start = new Date(startDate).setHours(0, 0, 0, 0);
-        const end = new Date(endDate).setHours(23, 59, 59, 999);
-        result = result.filter(r => {
-            if (!r.callDateTime) return false;
-            const registrationDate = new Date(r.callDateTime).getTime();
-            return registrationDate >= start && registrationDate <= end;
-        });
-    }
-
-    return result;
-}, [registrations, search, filterStatus, startDate, endDate]);
-
-// Sort the filtered data
-const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-        const aValue = a[sortKey] as string | number | undefined;
-        const bValue = b[sortKey] as string | number | undefined;
-
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-        }
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-            return sortAsc ? aValue - bValue : bValue - aValue;
-        }
-        return 0;
-    });
-}, [filtered, sortKey, sortAsc]);
-
-// Paginate the sorted data
-const paginated = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sorted.slice(start, start + itemsPerPage);
-}, [sorted, currentPage, itemsPerPage]);
-
-// Calculate total pages
-const totalPages = Math.ceil(sorted.length / itemsPerPage);
+    };
 
     const handleCheckboxChange = (_id: string) => {
         setSelectedRows(prev => {
@@ -769,6 +605,60 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
             setSelectedRows(new Set());
         }
     };
+
+    const filtered = useMemo(() => {
+        let result = registrations;
+
+        if (search) {
+            result = result.filter(
+                (r) =>
+                    r.fullName.toLowerCase().includes(search.toLowerCase()) ||
+                    r.email.toLowerCase().includes(search.toLowerCase()) ||
+                    (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
+                    String(r._id).includes(search) ||
+                    (r.ticketNo && String(r.ticketNo).includes(search))
+            );
+        }
+
+        if (filterStatus !== 'all') {
+            result = result.filter(r => r.status === filterStatus);
+        }
+
+        if (startDate && endDate) {
+            const start = new Date(startDate).setHours(0, 0, 0, 0);
+            const end = new Date(endDate).setHours(23, 59, 59, 999);
+            result = result.filter(r => {
+                if (!r.callDateTime) return false;
+                const registrationDate = new Date(r.callDateTime).getTime();
+                return registrationDate >= start && registrationDate <= end;
+            });
+        }
+
+        return result;
+    }, [registrations, search, filterStatus, startDate, endDate]);
+
+    const sorted = useMemo(() => {
+        return [...filtered].sort((a, b) => {
+            const aValue = a[sortKey];
+            const bValue = b[sortKey];
+
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            }
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortAsc ? aValue - bValue : bValue - aValue;
+            }
+            // Fallback for mixed or undefined types
+            return 0;
+        });
+    }, [filtered, sortKey, sortAsc]);
+
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return sorted.slice(start, start + itemsPerPage);
+    }, [sorted, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
     const totalRegistrationsCount = registrations.length;
     const upcomingRegistrationsCount = useMemo(() => registrations.filter(r => r.status === 'upcoming').length, [registrations]);
@@ -836,13 +726,6 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                         </div>
                         <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
                             <button
-                                onClick={() => setIsFilterSidebarOpen(true)}
-                                className="w-full sm:w-auto bg-gray-200 text-gray-800 px-6 py-3 rounded-xl flex items-center justify-center hover:bg-gray-300 transition-all duration-200 shadow-md"
-                            >
-                                <IconFilter className="mr-2 h-5 w-5" />
-                                Advanced Filters
-                            </button>
-                            <button
                                 onClick={() => {
                                     setExportingId('all');
                                     setExportModalOpen(true);
@@ -888,7 +771,7 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                             />
                         </div>
                     </section>
-
+                    
                     {/* Data Visualization Section */}
                     <DataVisualizations registrations={registrations} />
 
@@ -896,7 +779,10 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                     <section className="bg-white p-6 rounded-2xl shadow-xl ring-1 ring-gray-200">
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">Training Registration Database</h2>
-                            <div className="relative w-full md:w-80">
+                        </div>
+                        {/* Inline Filters and Search */}
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                            <div className="relative w-full sm:w-64">
                                 <input
                                     type="text"
                                     placeholder="Search by name, email, or profession..."
@@ -905,7 +791,7 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                                         setSearch(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all duration-200"
+                                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all duration-200"
                                 />
                                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 fill-current">
@@ -913,6 +799,30 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                                         <path d="M21 21l-6-6" />
                                     </svg>
                                 </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium text-gray-700">Filter by Status:</span>
+                                {(['all', 'upcoming', 'pending', 'completed'] as const).map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status)}
+                                        className={`py-2 px-4 rounded-full text-xs font-semibold transition-colors ${filterStatus === status ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                                    >
+                                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium text-gray-700">Filter by Date:</span>
+                                {(['all', 'today', 'last7days', 'last30days'] as const).map((preset) => (
+                                    <button
+                                        key={preset}
+                                        onClick={() => handleDatePreset(preset)}
+                                        className={`py-2 px-4 rounded-full text-xs font-medium transition-colors ${dateRangePreset === preset ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                                    >
+                                        {preset === 'all' ? 'All Time' : preset === 'today' ? 'Today' : preset === 'last7days' ? 'Last 7 Days' : 'Last 30 Days'}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -966,7 +876,7 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                                                 className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none min-w-[100px]"
                                                 onClick={() => {
                                                     if (col.key !== 'actions' && col.key !== 'selection') {
-                                                        toggleSort(col.key as keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>);
+                                                        toggleSort(col.key as SortableKey);
                                                     }
                                                 }}
                                             >
@@ -1124,18 +1034,6 @@ const totalPages = Math.ceil(sorted.length / itemsPerPage);
                 onClose={() => setExportModalOpen(false)}
                 onExport={handleExport}
                 exportingId={exportingId}
-            />
-            <FilterSidebar
-                isOpen={isFilterSidebarOpen}
-                onClose={() => setIsFilterSidebarOpen(false)}
-                filterStatus={filterStatus}
-                setFilterStatus={setFilterStatus}
-                startDate={startDate}
-                setStartDate={setStartDate}
-                endDate={endDate}
-                setEndDate={setEndDate}
-                handleDatePreset={handleDatePreset}
-                dateRangePreset={dateRangePreset}
             />
         </div>
     );
