@@ -88,7 +88,7 @@ type Registration = {
     email: string;
     phoneNumber?: string;
     dob?: string;
-    experience?: number;
+    experience?: string;
     institution?: string;
     callDateTime?: string;
     hearAboutUs?: string;
@@ -223,7 +223,16 @@ const ExportModal = ({ isOpen, onClose, onExport, exportingId }: { isOpen: boole
 
 // Data Visualization Component
 const DataVisualizations = ({ registrations }: { registrations: Registration[]; }) => {
-    const [isCollapsed, setIsCollapsed] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Helper function to categorize experience
+    const getExperienceRange = (exp: number) => {
+        if (exp >= 0 && exp <= 2) return '0-2 years';
+        if (exp >= 3 && exp <= 5) return '3-5 years';
+        if (exp >= 6 && exp <= 10) return '6-10 years';
+        if (exp > 10) return '10+ years';
+        return 'Not specified';
+    };
 
     const monthlyData = useMemo(() => {
         const data: { [key: string]: number } = {};
@@ -239,7 +248,6 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         return Object.entries(data).map(([name, count]) => ({ name, registrations: count }));
     }, [registrations]);
     
-    // Type definition for pie chart data
     type PieChartData = { name: string; value: number; color: string; };
 
     const statusData: PieChartData[] = useMemo(() => {
@@ -252,6 +260,52 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
             { name: 'Completed', value: completedCount, color: '#22c55e' },
         ].filter(d => d.value > 0);
     }, [registrations]);
+
+    // Data for "How they heard about us"
+    const hearAboutUsData: PieChartData[] = useMemo(() => {
+        const data: { [key: string]: number } = {};
+        registrations.forEach(reg => {
+            if (reg.hearAboutUs) {
+                const source = reg.hearAboutUs;
+                data[source] = (data[source] || 0) + 1;
+            }
+        });
+        const colors = ['#f97316', '#10b981', '#6366f1', '#ef4444', '#f59e0b', '#3b82f6'];
+        return Object.entries(data).map(([name, value], index) => ({
+            name,
+            value,
+            color: colors[index % colors.length],
+        })).filter(d => d.value > 0);
+    }, [registrations]);
+
+    // Data for Training Programs
+    const trainingProgramData = useMemo(() => {
+        const data: { [key: string]: number } = {};
+        registrations.forEach(reg => {
+            if (reg.trainingPrograms) {
+                reg.trainingPrograms.forEach(program => {
+                    data[program] = (data[program] || 0) + 1;
+                });
+            }
+        });
+        return Object.entries(data).map(([name, registrations]) => ({ name, registrations }));
+    }, [registrations]);
+    
+    // Data for Professional Experience
+    const experienceData = useMemo(() => {
+        const data: { [key: string]: number } = {};
+        registrations.forEach(reg => {
+            if (reg.experience) {
+                const experienceValue = parseInt(reg.experience, 10);
+                if (!isNaN(experienceValue)) {
+                    const range = getExperienceRange(experienceValue);
+                    data[range] = (data[range] || 0) + 1;
+                }
+            }
+        });
+        return Object.entries(data).map(([name, registrations]) => ({ name, registrations }));
+    }, [registrations]);
+
 
     return (
         <section className="mb-8 p-6 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
@@ -273,7 +327,7 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
                         transition={{ duration: 0.3 }}
                         className="overflow-hidden pt-4"
                     >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             <div className="p-4 bg-gray-50 rounded-2xl">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Registrations Over Time</h3>
                                 <ResponsiveContainer width="100%" height={300}>
@@ -292,34 +346,84 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
                                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Training Status Distribution</h3>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <PieChart>
-<Pie
-  data={statusData}
-  dataKey="value"
-  nameKey="name"
-  cx="50%"
-  cy="50%"
-  outerRadius={80}
-  fill="#8884d8"
-  label={(props) => {
-    const { name, percent } = props as { name: string; percent?: number };
-    return `${name} ${((percent ?? 0) * 100).toFixed(0)}%`;
-  }}
->
-  {statusData.map((entry, index) => (
-    <Cell key={`cell-${index}`} fill={entry.color} />
-  ))}
-</Pie>
-
-
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#fff',
-                                                border: 'none',
-                                                borderRadius: '12px',
+                                        <Pie
+                                            data={statusData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            label={(props) => {
+                                                const { name, percent } = props as { name: string; percent?: number };
+                                                return `${name} ${((percent ?? 0) * 100).toFixed(0)}%`;
                                             }}
+                                        >
+                                            {statusData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
                                         />
                                         <Legend verticalAlign="bottom" height={36} />
                                     </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-2xl flex flex-col items-center">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Referral Source Breakdown</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={hearAboutUsData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            label={(props) => {
+                                                const { name, percent } = props as { name: string; percent?: number };
+                                                return `${name} ${((percent ?? 0) * 100).toFixed(0)}%`;
+                                            }}
+                                        >
+                                            {hearAboutUsData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-2xl">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Popular Training Programs</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={trainingProgramData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
+                                        />
+                                        <Bar dataKey="registrations" fill="#22c55e" radius={[10, 10, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="p-4 bg-gray-50 rounded-2xl">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Professional Experience Levels</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={experienceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
+                                            contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px' }}
+                                        />
+                                        <Bar dataKey="registrations" fill="#f59e0b" radius={[10, 10, 0, 0]} />
+                                    </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -329,6 +433,7 @@ const DataVisualizations = ({ registrations }: { registrations: Registration[]; 
         </section>
     );
 };
+
 
 // Filter Sidebar Component (Full-width content)
 const FilterSidebar = ({
@@ -431,13 +536,12 @@ const FilterSidebar = ({
 };
 
 
-
-export default function DashboardPage() {
+export default function App() {
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [sortKey, setSortKey] = useState<keyof Omit<Registration, '_id'>>('fullName');
-    const [sortAsc, setSortAsc] = useState(true);
+
+ 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [viewing, setViewing] = useState<Registration | null>(null);
@@ -539,97 +643,111 @@ export default function DashboardPage() {
             setLoading(false);
         }
     };
+// Define which keys are sortable
+type SortableKey = keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>;
 
-    const handleDatePreset = (preset: string) => {
-        const today = new Date();
-        let start = '';
-        let end = today.toISOString().split('T')[0];
+// Sorting state
+const [sortKey, setSortKey] = useState<SortableKey>('fullName');
+const [sortAsc, setSortAsc] = useState(true);
 
-        switch (preset) {
-            case 'today':
-                start = end;
-                break;
-            case 'last7days':
-                const sevenDaysAgo = new Date(today);
-                sevenDaysAgo.setDate(today.getDate() - 7);
-                start = sevenDaysAgo.toISOString().split('T')[0];
-                break;
-            case 'last30days':
-                const thirtyDaysAgo = new Date(today);
-                thirtyDaysAgo.setDate(today.getDate() - 30);
-                start = thirtyDaysAgo.toISOString().split('T')[0];
-                break;
-            default:
-                start = '';
-                end = '';
-                break;
+// Toggle sorting direction
+const toggleSort = (key: SortableKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
+        setSortKey(key);
+        setSortAsc(true);
+    }
+};
+
+// Handle date range presets
+const handleDatePreset = (preset: string) => {
+    const today = new Date();
+    let start = '';
+    let end = today.toISOString().split('T')[0];
+
+    switch (preset) {
+        case 'today':
+            start = end;
+            break;
+        case 'last7days': {
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            start = sevenDaysAgo.toISOString().split('T')[0];
+            break;
         }
-        setStartDate(start);
-        setEndDate(end);
-        setDateRangePreset(preset);
-    };
-
-    const filtered = useMemo(() => {
-        let result = registrations;
-
-        if (search) {
-            result = result.filter(
-                (r) =>
-                    r.fullName.toLowerCase().includes(search.toLowerCase()) ||
-                    r.email.toLowerCase().includes(search.toLowerCase()) ||
-                    (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
-                    String(r._id).includes(search) ||
-                    (r.ticketNo && String(r.ticketNo).includes(search))
-            );
+        case 'last30days': {
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            start = thirtyDaysAgo.toISOString().split('T')[0];
+            break;
         }
+        default:
+            start = '';
+            end = '';
+            break;
+    }
 
-        if (filterStatus !== 'all') {
-            result = result.filter(r => r.status === filterStatus);
-        }
+    setStartDate(start);
+    setEndDate(end);
+    setDateRangePreset(preset);
+};
 
-        if (startDate && endDate) {
-            const start = new Date(startDate).setHours(0, 0, 0, 0);
-            const end = new Date(endDate).setHours(23, 59, 59, 999);
-            result = result.filter(r => {
-                if (!r.callDateTime) return false;
-                const registrationDate = new Date(r.callDateTime).getTime();
-                return registrationDate >= start && registrationDate <= end;
-            });
-        }
+// Filter registrations based on search, status, and date range
+const filtered = useMemo(() => {
+    let result = registrations;
 
-        return result;
-    }, [registrations, search, filterStatus, startDate, endDate]);
+    if (search) {
+        result = result.filter(
+            (r) =>
+                r.fullName.toLowerCase().includes(search.toLowerCase()) ||
+                r.email.toLowerCase().includes(search.toLowerCase()) ||
+                (r.currentProfession && r.currentProfession.toLowerCase().includes(search.toLowerCase())) ||
+                String(r._id).includes(search) ||
+                (r.ticketNo && String(r.ticketNo).includes(search))
+        );
+    }
 
-    const sorted = useMemo(() => {
-        return [...filtered].sort((a, b) => {
-            const aValue = a[sortKey];
-            const bValue = b[sortKey];
+    if (filterStatus !== 'all') {
+        result = result.filter(r => r.status === filterStatus);
+    }
 
-            if (typeof aValue === 'string' && typeof bValue === 'string') {
-                return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-            }
-            if (typeof aValue === 'number' && typeof bValue === 'number') {
-                return sortAsc ? aValue - bValue : bValue - aValue;
-            }
-            // Fallback for mixed or undefined types
-            return 0;
+    if (startDate && endDate) {
+        const start = new Date(startDate).setHours(0, 0, 0, 0);
+        const end = new Date(endDate).setHours(23, 59, 59, 999);
+        result = result.filter(r => {
+            if (!r.callDateTime) return false;
+            const registrationDate = new Date(r.callDateTime).getTime();
+            return registrationDate >= start && registrationDate <= end;
         });
-    }, [filtered, sortKey, sortAsc]);
+    }
 
-    const paginated = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        return sorted.slice(start, start + itemsPerPage);
-    }, [sorted, currentPage, itemsPerPage]);
+    return result;
+}, [registrations, search, filterStatus, startDate, endDate]);
 
-    const totalPages = Math.ceil(sorted.length / itemsPerPage);
+// Sort the filtered data
+const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+        const aValue = a[sortKey] as string | number | undefined;
+        const bValue = b[sortKey] as string | number | undefined;
 
-    const toggleSort = (key: keyof Omit<Registration, '_id' | 'trainingPrograms' | 'additionalPrograms' | 'isExpired'>) => {
-        if (sortKey === key) setSortAsc(!sortAsc);
-        else {
-            setSortKey(key);
-            setSortAsc(true);
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+            return sortAsc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
         }
-    };
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortAsc ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+    });
+}, [filtered, sortKey, sortAsc]);
+
+// Paginate the sorted data
+const paginated = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sorted.slice(start, start + itemsPerPage);
+}, [sorted, currentPage, itemsPerPage]);
+
+// Calculate total pages
+const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
     const handleCheckboxChange = (_id: string) => {
         setSelectedRows(prev => {
